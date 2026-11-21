@@ -140,7 +140,7 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
             {
                 existing.MarkStable(now);
                 var invalidExpected = await db.ExpectedFiles.FirstOrDefaultAsync(x =>
-                    x.MonitoringRuleId == rule.Id && x.ExpectedFileName == info.Name &&
+                    x.MonitoringRuleId == rule.Id && x.ExpectedFileName.ToLower() == info.Name.ToLower() &&
                     x.Status != ExpectedFileStatus.Received && x.Status != ExpectedFileStatus.Late,
                     cancellationToken);
                 invalidExpected?.MarkInvalid();
@@ -154,7 +154,8 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                             (x.Status == ExpectedFileStatus.Scheduled ||
                              x.Status == ExpectedFileStatus.Waiting ||
                              x.Status == ExpectedFileStatus.Missing))
-                .OrderBy(x => x.ExpectedAtUtc)
+                .OrderByDescending(x => x.ExpectedAtUtc <= existing.DetectedAtUtc)
+                .ThenByDescending(x => x.ExpectedAtUtc)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (expectedFile is not null)
