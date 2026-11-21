@@ -117,6 +117,8 @@ public sealed class MonitoringEngineTests
                 expected.RefreshStatus(expectedAt.AddMinutes(2));
                 expectedId = expected.Id;
                 setup.ExpectedFiles.Add(expected);
+                setup.MonitoringIncidents.Add(new MonitoringIncident(rule.Id, expected.Id,
+                    "EXPECTED_FILE_MISSING", "Test missing expected file", DateTimeOffset.UtcNow.AddMinutes(-1)));
 
                 var info = new FileInfo(path);
                 var received = new ReceivedFile(rule.Id, path, fileName, info.Length,
