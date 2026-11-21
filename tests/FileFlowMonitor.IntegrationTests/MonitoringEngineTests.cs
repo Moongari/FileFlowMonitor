@@ -131,4 +131,32 @@ public sealed class MonitoringEngineTests
         }
     }
 
+    [Fact]
+    public async Task Updating_Rule_Cancels_Obsolete_Future_Expectations()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "FileFlowMonitor.Tests", Guid.NewGuid().ToString("N"));
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<FileFlowDbContext>().UseSqlite(connection).Options;
+
+        await using var db = new FileFlowDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+        var service = new MonitoringRuleService(new MonitoringRuleRepository(db));
+        var initial = new MonitoringRuleConfiguration(
+            "Daily feed", folder, MatchingMode.ExactName, null, 1,
+            ["old.csv"], ["csv"], [new TimeOnly(8, 0)], WeekDays.EveryDay,
+            TimeZoneInfo.Utc.Id, 15, 5, true);
+        var rule = await service.CreateAsync(initial);
+        var futureAt = DateTimeOffset.UtcNow.AddHours(3);
+        var oldOccurrence = new ExpectedFile(rule.Id, "old.csv", futureAt, futureAt.AddMinutes(15));
+        db.ExpectedFiles.Add(oldOccurrence);
+        await db.SaveChangesAsync();
+
+        var updated = initial with { ExpectedFileNames = ["new.csv"] };
+        await service.UpdateAsync(rule.Id, updated);
+
+        var persisted = await db.ExpectedFiles.SingleAsync(x => x.Id == oldOccurrence.Id);
+        Assert.Equal(ExpectedFileStatus.Cancelled, persisted.Status);
+    }
+
 }
