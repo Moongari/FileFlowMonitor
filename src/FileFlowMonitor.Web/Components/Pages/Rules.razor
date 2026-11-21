@@ -11,7 +11,7 @@
 <div class="form-grid">
 <label>Nom de la règle<input @bind="_form.Name" placeholder="Ex. Citi - fichiers de trading" required /></label>
 <label>Chemin du dossier<input @bind="_form.FolderPath" placeholder="D:\FileFlow\Citi ou \\serveur\partage" required /></label>
-<label>Mode de reconnaissance<select @bind="_form.MatchingMode"><option value="0">Noms exacts</option><option value="1">Modèle de nommage</option><option value="2">Motif (pattern)</option><option value="3">Quantité de fichiers</option></select></label>
+<label>Mode de reconnaissance<select @bind="_form.MatchingMode"><option value="0">Noms exacts</option><option value="1">Modèle de nommage</option><option value="2" disabled>Motif (prochaine évolution)</option><option value="3" disabled>Quantité (prochaine évolution)</option></select></label>
 <label>Nom(s) attendu(s)<input @bind="_form.ExpectedFileNamesText" placeholder="trades.csv, positions.csv" /></label>
 <label>Modèle ou motif de nommage<input @bind="_form.FileNamePattern" placeholder="trades_{DATE}.csv ou trade*.csv" /></label>
 <label>Quantité attendue<input type="number" min="1" @bind="_form.ExpectedCount" /></label>
@@ -22,7 +22,7 @@
 <label>Délai de grâce (minutes)<input type="number" min="0" max="1440" @bind="_form.GracePeriodMinutes" /></label>
 <label>Stabilité fichier (secondes)<input type="number" min="0" max="3600" @bind="_form.StabilityPeriodSeconds" /></label>
 </div>
-<div class="form-help">Pour le mode « Noms exacts », indiquez tous les noms attendus séparés par des virgules. Les horaires utilisent le fuseau choisi.</div>
+<div class="form-help">Le moteur exécute actuellement les modes « Noms exacts » et « Modèle de nommage ». Les modes Motif et Quantité seront activés dans une prochaine évolution. Pour les noms exacts, séparez les fichiers par des virgules. Les horaires utilisent le fuseau choisi.</div>
 <div class="form-actions"><button type="button" class="button-secondary" @onclick="Cancel">Annuler</button><button type="submit" class="button-primary" disabled="@_saving">@(_saving ? "Enregistrement…" : (_editingId.HasValue ? "Enregistrer les modifications" : "Créer la règle"))</button></div>
 </EditForm></section>
 }
