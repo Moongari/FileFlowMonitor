@@ -132,7 +132,7 @@ public sealed class ExpectedFilePlannerTests
     public void Plan_Pattern_Creates_Expected_Count_And_Matches_Regex()
     {
         var rule = new MonitoringRule("Pattern feed", @"D:\\Inbound", MatchingMode.Pattern);
-        rule.ConfigureMatching(MatchingMode.Pattern, @"^Trade[12]_\\d{8}_\\d{5}\\.csv$", 2);
+        rule.ConfigureMatching(MatchingMode.Pattern, @"^Trade[12]_\d{8}_\d{5}\.csv$", 2);
         rule.SetAllowedExtensions(["csv"]);
         rule.ConfigureCalendar(WeekDays.EveryDay, "UTC");
         rule.SetScheduleTimes([new TimeOnly(13, 0)]);
