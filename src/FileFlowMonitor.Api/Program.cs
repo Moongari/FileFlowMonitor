@@ -6,6 +6,7 @@ using FileFlowMonitor.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseUrls(builder.Configuration["Urls"] ?? "http://localhost:5080");
 
 // SQLite reste le fournisseur de persistance du MVP.
 var connectionString = builder.Configuration.GetConnectionString("FileFlow") ?? "Data Source=fileflowmonitor.db";
