@@ -1,11 +1,12 @@
+using System.Text.Json;
 using FileFlowMonitor.Domain.Enums;
 
 namespace FileFlowMonitor.Domain.Entities;
 
 public sealed class MonitoringRule
 {
-    private readonly List<string> _expectedFileNames = [];
-    private readonly List<string> _allowedExtensions = [];
+    private string _expectedFileNamesJson = "[]";
+    private string _allowedExtensionsJson = "[]";
 
     private MonitoringRule() { }
 
@@ -33,8 +34,8 @@ public sealed class MonitoringRule
     public WeekDays Days { get; private set; }
     public bool IsEnabled { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
-    public IReadOnlyCollection<string> ExpectedFileNames => _expectedFileNames.AsReadOnly();
-    public IReadOnlyCollection<string> AllowedExtensions => _allowedExtensions.AsReadOnly();
+    public IReadOnlyCollection<string> ExpectedFileNames => JsonSerializer.Deserialize<List<string>>(_expectedFileNamesJson) ?? [];
+    public IReadOnlyCollection<string> AllowedExtensions => JsonSerializer.Deserialize<List<string>>(_allowedExtensionsJson) ?? [];
     public ICollection<ScheduleTime> ScheduleTimes { get; private set; } = new List<ScheduleTime>();
 
     public void Rename(string name)
@@ -82,16 +83,15 @@ public sealed class MonitoringRule
         var values = names.Select(x => x?.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).Cast<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (MatchingMode == MatchingMode.ExactName && values.Count == 0)
             throw new ArgumentException("At least one exact expected file name is required.", nameof(names));
-        _expectedFileNames.Clear();
-        _expectedFileNames.AddRange(values);
+        _expectedFileNamesJson = JsonSerializer.Serialize(values);
     }
 
     public void SetAllowedExtensions(IEnumerable<string> extensions)
     {
         ArgumentNullException.ThrowIfNull(extensions);
-        _allowedExtensions.Clear();
-        _allowedExtensions.AddRange(extensions.Select(x => x.Trim().TrimStart('.').ToLowerInvariant())
-            .Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase));
+        var values = extensions.Select(x => x.Trim().TrimStart('.').ToLowerInvariant())
+            .Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        _allowedExtensionsJson = JsonSerializer.Serialize(values);
     }
 
     public void SetEnabled(bool enabled) => IsEnabled = enabled;
