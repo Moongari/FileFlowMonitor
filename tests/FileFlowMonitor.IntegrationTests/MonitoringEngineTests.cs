@@ -33,7 +33,7 @@ public sealed class MonitoringEngineTests
                 var schedule = TimeOnly.FromDateTime(DateTime.UtcNow.AddMinutes(-1));
                 var rule = await service.CreateAsync(new MonitoringRuleConfiguration(
                     "Citi test feed", folder, MatchingMode.ExactName, null, 1,
-                    ["trades.csv"], ["csv"], [schedule], WeekDays.EveryDay,
+                    ["TRADES.csv"], ["csv"], [schedule], WeekDays.EveryDay,
                     TimeZoneInfo.Utc.Id, 15, 0, true));
                 ruleId = rule.Id;
                 Assert.Single(rule.ScheduleTimes);
