@@ -41,7 +41,7 @@ else{
   if(key.EndsWith("AtUtc")&&v.ValueKind==JsonValueKind.String&&v.TryGetDateTimeOffset(out var dt))return dt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss");
   if(key=="sizeBytes"&&v.TryGetInt64(out var bytes))return bytes.ToString("N0");
   if(key=="isResolved")return v.GetBoolean()?"Oui":"Non";
-  if(key=="status"&&v.ValueKind==JsonValueKind.String)return v.GetString() switch{"Received"=>"Reçu","Late"=>"En retard","Missing"=>"Manquant","Waiting"=>"En attente","Scheduled"=>"Planifié","Invalid"=>"Invalide","Duplicate"=>"Doublon",_=>v.GetString()??"—"};
+  if(key=="status"&&v.ValueKind==JsonValueKind.String)return v.GetString() switch{"Received"=>"Reçu","Late"=>"En retard","Missing"=>"Manquant","Waiting"=>"En attente","Scheduled"=>"Planifié","Invalid"=>"Invalide","Duplicate"=>"Doublon","Cancelled"=>"Annulé",_=>v.GetString()??"—"};
   return v.ToString();
  }
 }
