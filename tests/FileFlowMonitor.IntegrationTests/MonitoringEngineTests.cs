@@ -82,6 +82,66 @@ public sealed class MonitoringEngineTests
             Directory.Delete(folder, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task Stable_File_Is_Reconciled_When_Expectation_Was_Already_Missing()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "FileFlowMonitor.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        const string fileName = "trade2_20261121_180000.csv";
+        var path = Path.Combine(folder, fileName);
+        await File.WriteAllTextAsync(path, "data");
+
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<FileFlowDbContext>().UseSqlite(connection).Options;
+        try
+        {
+            Guid ruleId;
+            Guid expectedId;
+            await using (var setup = new FileFlowDbContext(options))
+            {
+                await setup.Database.EnsureCreatedAsync();
+                var service = new MonitoringRuleService(new MonitoringRuleRepository(setup));
+                var rule = await service.CreateAsync(new MonitoringRuleConfiguration(
+                    "Citi stable reconciliation", folder, MatchingMode.ExactName, null, 1,
+                    [fileName], ["csv"], [new TimeOnly(18, 0)], WeekDays.EveryDay,
+                    TimeZoneInfo.Utc.Id, 0, 0, true));
+                ruleId = rule.Id;
+
+                var expectedAt = DateTimeOffset.UtcNow.AddHours(-2);
+                var expected = new ExpectedFile(rule.Id, fileName, expectedAt, expectedAt.AddMinutes(1));
+                expected.RefreshStatus(expectedAt.AddMinutes(2));
+                expectedId = expected.Id;
+                setup.ExpectedFiles.Add(expected);
+
+                var info = new FileInfo(path);
+                var received = new ReceivedFile(rule.Id, path, fileName, info.Length,
+                    new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero), DateTimeOffset.UtcNow.AddMinutes(-1));
+                received.MarkStable(DateTimeOffset.UtcNow.AddSeconds(-30));
+                setup.ReceivedFiles.Add(received);
+                await setup.SaveChangesAsync();
+            }
+
+            await using (var cycle = new FileFlowDbContext(options))
+                await new MonitoringEngineCycle(cycle, new ExpectedFilePlanner()).ExecuteAsync();
+
+            await using (var verify = new FileFlowDbContext(options))
+            {
+                var expected = await verify.ExpectedFiles.SingleAsync(x => x.Id == expectedId);
+                Assert.Equal(ExpectedFileStatus.Received, expected.Status);
+                Assert.NotNull(expected.ReceivedFileId);
+                var incidents = await verify.MonitoringIncidents.Where(x =>
+                    x.MonitoringRuleId == ruleId && x.Code == "EXPECTED_FILE_MISSING").ToListAsync();
+                Assert.All(incidents, x => Assert.NotNull(x.ResolvedAtUtc));
+            }
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task Folder_Unavailable_Incident_Is_Resolved_When_Folder_Returns()
     {
