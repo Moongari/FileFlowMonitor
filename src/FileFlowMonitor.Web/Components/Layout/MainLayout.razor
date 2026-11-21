@@ -1,0 +1,16 @@
+@inherits LayoutComponentBase
+<div class="app-shell">
+    <aside class="sidebar">
+        <a class="brand" href="/"><span class="brand-mark">F</span><span>FileFlow<small>MONITOR</small></span></a>
+        <div class="nav-caption">SUPERVISION</div>
+        <NavLink href="/" Match="NavLinkMatch.All"><span class="nav-icon">◫</span> Vue d'ensemble</NavLink>
+        <NavLink href="/rules"><span class="nav-icon">⚙</span> Règles de surveillance</NavLink>
+        <NavLink href="/operations"><span class="nav-icon">≋</span> Fichiers & incidents</NavLink>
+        <div class="sidebar-bottom"><span class="pulse"></span><span>Moteur de surveillance</span><small>API connectée via HTTP</small></div>
+    </aside>
+    <main class="main-area">
+        <header class="topbar"><div><span class="breadcrumb">FILEFLOW MONITOR</span><span class="topbar-separator">/</span><span>Centre de supervision</span></div><a class="topbar-link" href="http://localhost:5000/swagger" target="_blank">Documentation API ↗</a></header>
+        <section class="page-content">@Body</section>
+        <footer>FileFlow Monitor <span>•</span> Supervision fiable des flux de fichiers</footer>
+    </main>
+</div>
