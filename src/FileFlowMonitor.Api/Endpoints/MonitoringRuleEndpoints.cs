@@ -16,7 +16,18 @@ public static class MonitoringRuleEndpoints
         group.MapGet("/", async (MonitoringRuleService service, CancellationToken ct) =>
             Results.Ok((await service.GetAllAsync(ct)).Select(MonitoringRuleResponse.FromEntity)))
             .WithName("GetMonitoringRules").WithSummary("Lister les règles de surveillance")
-            .WithDescription("Retourne toutes les règles configurées, actives ou désactivées. Exemple de réponse : [{ id: GUID, name: Citi - fichiers de trading, isEnabled: true, scheduleTimes: [08:00:00, 12:00:00] }].")
+            .WithDescription("""
+            Retourne toutes les règles configurées, actives ou désactivées.
+            Exemple de réponse :
+            [
+              {
+                "id": "00000000-0000-0000-0000-000000000001",
+                "name": "Citi - fichiers de trading",
+                "isEnabled": true,
+                "scheduleTimes": ["08:00:00", "12:00:00"]
+              }
+            ]
+            """)
             .Produces<IReadOnlyList<MonitoringRuleResponse>>(StatusCodes.Status200OK);
 
         // Recherche une règle par identifiant.
@@ -62,6 +73,7 @@ public static class MonitoringRuleEndpoints
               "isEnabled": true
             }
             matchingMode : 0=ExactName, 1=FileNameTemplate, 2=Pattern, 3=Quantity.
+            Dans le moteur actuel, seuls ExactName et FileNameTemplate sont exécutés.
             days=31 correspond à lundi-vendredi (1+2+4+8+16).
             """)
         .Produces<MonitoringRuleResponse>(StatusCodes.Status201Created).ProducesValidationProblem();
@@ -79,7 +91,15 @@ public static class MonitoringRuleEndpoints
             catch (Exception exception) when (IsValidationException(exception)) { return ValidationError(exception); }
         })
         .WithName("UpdateMonitoringRule").WithSummary("Modifier une règle de surveillance")
-        .WithDescription("Remplace la configuration complète d'une règle existante. Le corps JSON est identique à POST ; exemple : scheduleTimes=[09:00:00] et gracePeriodMinutes=20.")
+        .WithDescription("""
+            Remplace la configuration complète d'une règle existante. Le corps JSON est identique à POST.
+            Exemple de modification de valeurs dans le corps complet :
+            {
+              "scheduleTimes": ["09:00:00"],
+              "gracePeriodMinutes": 20
+            }
+            Les autres champs obligatoires de la règle doivent également être fournis.
+            """)
         .Produces<MonitoringRuleResponse>(StatusCodes.Status200OK).Produces(StatusCodes.Status404NotFound).ProducesValidationProblem();
 
         // Change uniquement l'état actif/inactif.
@@ -89,7 +109,12 @@ public static class MonitoringRuleEndpoints
             return updated ? Results.NoContent() : Results.NotFound();
         })
         .WithName("SetMonitoringRuleEnabled").WithSummary("Activer ou désactiver une règle")
-        .WithDescription("Modifie uniquement IsEnabled. Exemple de corps : { isEnabled: false } pour suspendre temporairement la surveillance, true pour la reprendre.")
+        .WithDescription("""
+            Modifie uniquement IsEnabled ; les autres paramètres restent inchangés.
+            Exemple de corps JSON pour suspendre temporairement la surveillance :
+            { "isEnabled": false }
+            Envoyer { "isEnabled": true } pour reprendre la surveillance.
+            """)
         .Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status404NotFound);
 
         // Supprime la règle ; EF Core supprime également ses horaires associés en cascade.
