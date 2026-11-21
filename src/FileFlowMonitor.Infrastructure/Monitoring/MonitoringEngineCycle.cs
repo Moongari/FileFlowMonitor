@@ -109,7 +109,7 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                 .Where(x => x.MonitoringRuleId == rule.Id && x.FullPath == info.FullName)
                 .ToListAsync(cancellationToken);
             var existing = fileVersions.FirstOrDefault(x =>
-                x.LastWriteTimeUtc.UtcDateTime.Ticks == lastWrite.UtcDateTime.Ticks);
+                x.SizeBytes == info.Length && Math.Abs((x.LastWriteTimeUtc - lastWrite).TotalSeconds) < 1);
 
             if (existing is null)
             {
