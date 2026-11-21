@@ -157,6 +157,7 @@ public static class MonitoringReadEndpoints
             Exemple : GET /api/monitoring/expected-files?date=2026-11-21&status=Missing.
             Filtres facultatifs : date (AAAA-MM-JJ), ruleId et status (Scheduled, Waiting, Missing, Received, Late, Invalid, Duplicate, Cancelled).
             Sans date, utilise la date locale de chaque règle.
+            Exemple de réponse : expectedFileName=trades.csv, expectedAtLocal=2026-11-21 08:00:00, status=Missing.
             """)
         .Produces(StatusCodes.Status200OK);
 
