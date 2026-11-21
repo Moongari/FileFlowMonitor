@@ -27,7 +27,7 @@ else{
   try{
    var api=ClientFactory.CreateClient("FileFlowApi");
    var url=_tab switch{"expected"=>$"api/monitoring/expected-files?date={_date:yyyy-MM-dd}","received"=>"api/monitoring/received-files?limit=200","incidents"=>"api/monitoring/incidents?limit=200","executions"=>"api/monitoring/executions?limit=200",_=>""};
-   var doc=await api.GetFromJsonAsync<JsonDocument>(url);_rows=doc?.RootElement.EnumerateArray().Select(x=>x.Clone()).ToList()??[];
+   using var doc=await api.GetFromJsonAsync<JsonDocument>(url);_rows=doc?.RootElement.EnumerateArray().Select(x=>x.Clone()).ToList()??[];
    (_keys,_columns)=_tab switch{
     "expected"=>(new[] {"expectedFileName","expectedAtUtc","deadlineAtUtc","receivedAtUtc","status"},new[] {"Fichier attendu","Échéance","Limite de grâce","Réception","Statut"}),
     "received"=>(new[] {"fileName","fullPath","sizeBytes","detectedAtUtc","stableAtUtc"},new[] {"Fichier","Chemin complet","Taille (octets)","Détecté le","Stable depuis"}),
