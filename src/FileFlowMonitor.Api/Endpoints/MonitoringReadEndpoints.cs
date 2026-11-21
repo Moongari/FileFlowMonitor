@@ -19,7 +19,8 @@ public static class MonitoringReadEndpoints
             // SQLite stores DateTimeOffset as text by default and cannot range-filter/order it.
             // Keep the existing schema and evaluate each expected item on its rule's business date.
             var expected = (await db.ExpectedFiles.AsNoTracking().ToListAsync(ct))
-                .Where(x => zones.TryGetValue(x.MonitoringRuleId, out var zone) &&
+                .Where(x => x.Status != ExpectedFileStatus.Cancelled &&
+                    zones.TryGetValue(x.MonitoringRuleId, out var zone) &&
                     DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(x.ExpectedAtUtc, zone).DateTime) ==
                     DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, zone).DateTime))
                 .ToList();
