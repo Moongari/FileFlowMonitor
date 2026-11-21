@@ -16,7 +16,7 @@ public static class MonitoringRuleEndpoints
         group.MapGet("/", async (MonitoringRuleService service, CancellationToken ct) =>
             Results.Ok((await service.GetAllAsync(ct)).Select(MonitoringRuleResponse.FromEntity)))
             .WithName("GetMonitoringRules").WithSummary("Lister les règles de surveillance")
-            .WithDescription("Retourne toutes les règles configurées, qu'elles soient actives ou désactivées.")
+            .WithDescription("Retourne toutes les règles configurées, actives ou désactivées. Exemple de réponse : [{ id: GUID, name: Citi - fichiers de trading, isEnabled: true, scheduleTimes: [08:00:00, 12:00:00] }].")
             .Produces<IReadOnlyList<MonitoringRuleResponse>>(StatusCodes.Status200OK);
 
         // Recherche une règle par identifiant.
@@ -26,7 +26,7 @@ public static class MonitoringRuleEndpoints
             return rule is null ? Results.NotFound() : Results.Ok(MonitoringRuleResponse.FromEntity(rule));
         })
         .WithName("GetMonitoringRuleById").WithSummary("Consulter une règle")
-        .WithDescription("Retourne la configuration complète d'une règle, y compris ses horaires, jours et formats autorisés.")
+        .WithDescription("Retourne la configuration complète d'une règle, y compris ses horaires, jours et formats autorisés. Renseigner {id} avec le GUID retourné par GET /api/monitoring-rules.")
         .Produces<MonitoringRuleResponse>(StatusCodes.Status200OK).Produces(StatusCodes.Status404NotFound);
 
         // Valide le contrat, applique les invariants métier et crée la ressource.
@@ -42,7 +42,7 @@ public static class MonitoringRuleEndpoints
             catch (Exception exception) when (IsValidationException(exception)) { return ValidationError(exception); }
         })
         .WithName("CreateMonitoringRule").WithSummary("Créer une règle de surveillance")
-        .WithDescription("Crée une règle avec son dossier, son mode de matching, ses horaires, son calendrier et ses tolérances.")
+        .WithDescription("Crée une règle. Exemple : surveiller D:\\FileFlow\\Citi du lundi au vendredi à 08:00 et 12:00, attendre trades.csv et positions.csv, accepter CSV avec 15 minutes de grâce. Corps JSON : { "name": "Citi - fichiers de trading", "folderPath": "D:\\\\FileFlow\\\\Citi", "matchingMode": 0, "expectedCount": 2, "expectedFileNames": ["trades.csv", "positions.csv"], "allowedExtensions": ["csv"], "scheduleTimes": ["08:00:00", "12:00:00"], "days": 31, "timeZoneId": "Europe/Paris", "gracePeriodMinutes": 15, "stabilityPeriodSeconds": 5, "isEnabled": true }. matchingMode : 0=ExactName, 1=FileNameTemplate, 2=Pattern, 3=Quantity. days=31 signifie lundi-vendredi (1+2+4+8+16).")
         .Produces<MonitoringRuleResponse>(StatusCodes.Status201Created).ProducesValidationProblem();
 
         // Remplace la configuration complète d'une règle existante.
@@ -58,7 +58,7 @@ public static class MonitoringRuleEndpoints
             catch (Exception exception) when (IsValidationException(exception)) { return ValidationError(exception); }
         })
         .WithName("UpdateMonitoringRule").WithSummary("Modifier une règle de surveillance")
-        .WithDescription("Met à jour la configuration complète d'une règle existante, y compris ses horaires et extensions.")
+        .WithDescription("Remplace la configuration complète d'une règle existante. Le corps JSON est identique à POST ; exemple : scheduleTimes=[09:00:00] et gracePeriodMinutes=20.")
         .Produces<MonitoringRuleResponse>(StatusCodes.Status200OK).Produces(StatusCodes.Status404NotFound).ProducesValidationProblem();
 
         // Change uniquement l'état actif/inactif.
@@ -68,7 +68,7 @@ public static class MonitoringRuleEndpoints
             return updated ? Results.NoContent() : Results.NotFound();
         })
         .WithName("SetMonitoringRuleEnabled").WithSummary("Activer ou désactiver une règle")
-        .WithDescription("Modifie uniquement IsEnabled ; les autres paramètres de la règle restent inchangés.")
+        .WithDescription("Modifie uniquement IsEnabled. Exemple de corps : { isEnabled: false } pour suspendre temporairement la surveillance, true pour la reprendre.")
         .Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status404NotFound);
 
         // Supprime la règle ; EF Core supprime également ses horaires associés en cascade.
@@ -78,7 +78,7 @@ public static class MonitoringRuleEndpoints
             return deleted ? Results.NoContent() : Results.NotFound();
         })
         .WithName("DeleteMonitoringRule").WithSummary("Supprimer une règle")
-        .WithDescription("Supprime la règle identifiée et ses horaires associés. Retourne 404 si elle n'existe pas.")
+        .WithDescription("Supprime définitivement la règle et ses horaires associés. Exemple : DELETE /api/monitoring-rules/{id}. Retourne 404 si elle n'existe pas.")
         .Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status404NotFound);
 
         return endpoints;
