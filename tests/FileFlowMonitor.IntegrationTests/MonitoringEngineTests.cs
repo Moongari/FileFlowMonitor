@@ -52,6 +52,9 @@ public sealed class MonitoringEngineTests
                 var persisted = await check.ExpectedFiles.Where(x => x.MonitoringRuleId == ruleId).ToListAsync();
                 Assert.Equal(2, persisted.Count);
                 Assert.Equal(2, persisted.Select(x => x.ExpectedAtUtc.UtcDateTime.Ticks).Distinct().Count());
+                var currentOccurrence = Assert.Single(persisted, x => x.ExpectedAtUtc <= DateTimeOffset.UtcNow);
+                Assert.Equal(ExpectedFileStatus.Received, currentOccurrence.Status);
+                Assert.NotNull(currentOccurrence.ReceivedFileId);
             }
 
             // A subsequent cycle confirms stable metadata and links the file to its expectation.
