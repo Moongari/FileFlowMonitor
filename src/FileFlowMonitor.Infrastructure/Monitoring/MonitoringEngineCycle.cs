@@ -1,0 +1,177 @@
+using FileFlowMonitor.Application.ExpectedFiles;
+using FileFlowMonitor.Domain.Entities;
+using FileFlowMonitor.Domain.Enums;
+using FileFlowMonitor.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace FileFlowMonitor.Infrastructure.Monitoring;
+
+/// <summary>
+/// Executes one reconciliation cycle. The filesystem is only read; all monitoring
+/// state is persisted in SQLite so a process restart does not reset the history.
+/// </summary>
+public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlanner planner)
+{
+    public async Task ExecuteAsync(CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var rules = await db.MonitoringRules
+            .Include(x => x.ScheduleTimes)
+            .Where(x => x.IsEnabled)
+            .ToListAsync(cancellationToken);
+
+        foreach (var rule in rules)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var execution = new MonitoringExecution(rule.Id, now);
+            db.MonitoringExecutions.Add(execution);
+
+            try
+            {
+                await PlanExpectedFilesAsync(rule, now, cancellationToken);
+                var discovered = await ReconcileFolderAsync(rule, now, cancellationToken);
+
+                var expected = await db.ExpectedFiles
+                    .Where(x => x.MonitoringRuleId == rule.Id)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var item in expected)
+                    item.RefreshStatus(now);
+
+                execution.Complete(DateTimeOffset.UtcNow, discovered);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                execution.Fail(DateTimeOffset.UtcNow, ex.Message);
+                await RecordIncidentAsync(rule.Id, "MONITORING_EXECUTION_FAILED",
+                    ex.Message, now, cancellationToken);
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private async Task PlanExpectedFilesAsync(
+        MonitoringRule rule, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var localDate = DateOnly.FromDateTime(
+            TimeZoneInfo.ConvertTime(now, TimeZoneInfo.FindSystemTimeZoneById(rule.TimeZoneId)).DateTime);
+
+        // Plan today and tomorrow in advance. The unique index in SQLite is the
+        // final guard against duplicate occurrences across repeated cycles.
+        foreach (var date in new[] { localDate, localDate.AddDays(1) })
+        {
+            var planned = planner.Plan(rule, date);
+            if (planned.Count == 0) continue;
+
+            var start = planned.Min(x => x.ExpectedAtUtc);
+            var end = planned.Max(x => x.ExpectedAtUtc);
+            var existing = await db.ExpectedFiles
+                .Where(x => x.MonitoringRuleId == rule.Id &&
+                            x.ExpectedAtUtc >= start && x.ExpectedAtUtc <= end)
+                .Select(x => new { x.ExpectedAtUtc, x.ExpectedFileName })
+                .ToListAsync(cancellationToken);
+
+            foreach (var item in planned)
+            {
+                if (existing.Any(x => x.ExpectedAtUtc == item.ExpectedAtUtc &&
+                    x.ExpectedFileName == item.ExpectedFileName))
+                    continue;
+
+                db.ExpectedFiles.Add(item);
+            }
+        }
+    }
+
+    private async Task<int> ReconcileFolderAsync(
+        MonitoringRule rule, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        if (!Directory.Exists(rule.FolderPath))
+        {
+            await RecordIncidentAsync(rule.Id, "FOLDER_UNAVAILABLE",
+                $"The monitored folder is missing or inaccessible: {rule.FolderPath}",
+                now, cancellationToken);
+            return 0;
+        }
+
+        var discovered = 0;
+        // EnumerateFiles supports local paths and UNC shares. No files are moved,
+        // opened for writing, or modified by the monitoring engine.
+        foreach (var path in Directory.EnumerateFiles(rule.FolderPath, "*", SearchOption.TopDirectoryOnly))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var info = new FileInfo(path);
+            info.Refresh();
+            if (!info.Exists) continue;
+
+            var lastWrite = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero);
+            var existing = await db.ReceivedFiles.FirstOrDefaultAsync(x =>
+                x.MonitoringRuleId == rule.Id && x.FullPath == info.FullName &&
+                x.LastWriteTimeUtc == lastWrite, cancellationToken);
+
+            if (existing is null)
+            {
+                existing = new ReceivedFile(rule.Id, info.FullName, info.Name,
+                    info.Length, lastWrite, now);
+                db.ReceivedFiles.Add(existing);
+                discovered++;
+                continue;
+            }
+
+            if (existing.StableAtUtc.HasValue ||
+                now - existing.DetectedAtUtc < TimeSpan.FromSeconds(rule.StabilityPeriodSeconds))
+                continue;
+
+            // Re-read metadata immediately before qualifying the file. A changed
+            // file will be observed as a new version on the next reconciliation.
+            info.Refresh();
+            if (!info.Exists || info.Length != existing.SizeBytes ||
+                new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero) != existing.LastWriteTimeUtc)
+                continue;
+
+            if (rule.AllowedExtensions.Count > 0 &&
+                !rule.AllowedExtensions.Contains(info.Extension.TrimStart('.'),
+                    StringComparer.OrdinalIgnoreCase))
+            {
+                existing.MarkStable(now);
+                var invalidExpected = await db.ExpectedFiles.FirstOrDefaultAsync(x =>
+                    x.MonitoringRuleId == rule.Id && x.ExpectedFileName == info.Name &&
+                    x.Status != ExpectedFileStatus.Received && x.Status != ExpectedFileStatus.Late,
+                    cancellationToken);
+                invalidExpected?.MarkInvalid();
+                continue;
+            }
+
+            existing.MarkStable(now);
+            var expectedFile = await db.ExpectedFiles
+                .Where(x => x.MonitoringRuleId == rule.Id &&
+                            x.ExpectedFileName == info.Name &&
+                            (x.Status == ExpectedFileStatus.Scheduled ||
+                             x.Status == ExpectedFileStatus.Waiting ||
+                             x.Status == ExpectedFileStatus.Missing))
+                .OrderBy(x => x.ExpectedAtUtc)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (expectedFile is not null)
+                expectedFile.MarkReceived(existing.Id, existing.LastWriteTimeUtc);
+        }
+
+        return discovered;
+    }
+
+    private async Task RecordIncidentAsync(
+        Guid ruleId, string code, string message, DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var open = await db.MonitoringIncidents.FirstOrDefaultAsync(x =>
+            x.MonitoringRuleId == ruleId && x.Code == code && x.ResolvedAtUtc == null,
+            cancellationToken);
+
+        if (open is null)
+            db.MonitoringIncidents.Add(new MonitoringIncident(ruleId, null, code, message, now));
+    }
+}
