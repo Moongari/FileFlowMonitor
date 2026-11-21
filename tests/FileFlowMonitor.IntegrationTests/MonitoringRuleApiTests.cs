@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FileFlowMonitor.Infrastructure.Persistence;
+using FileFlowMonitor.Domain.Entities;
+using FileFlowMonitor.Domain.Enums;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -114,6 +116,35 @@ public sealed class MonitoringRuleApiTests
             using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
             Assert.Equal(JsonValueKind.Array, json.RootElement.ValueKind);
         }
+    }
+
+
+    [Fact]
+    public async Task Expected_Files_Are_Filtered_By_Rule_Local_Business_Date()
+    {
+        await using var factory = new MonitoringRuleApiFactory();
+        using var client = factory.CreateClient();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<FileFlowDbContext>();
+        await db.Database.EnsureCreatedAsync();
+
+        var rule = new MonitoringRule("Paris midnight feed", @"C:\\Inbound", MatchingMode.ExactName);
+        rule.SetExpectedFileNames(["midnight.csv"]);
+        rule.ConfigureCalendar(WeekDays.EveryDay, "Europe/Paris");
+        rule.SetScheduleTimes([new TimeOnly(0, 30)]);
+        rule.SetEnabled(false);
+        db.MonitoringRules.Add(rule);
+        db.ExpectedFiles.Add(new ExpectedFile(
+            rule.Id, "midnight.csv",
+            new DateTimeOffset(2026, 11, 20, 23, 30, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 11, 20, 23, 45, 0, TimeSpan.Zero)));
+        await db.SaveChangesAsync();
+
+        var response = await client.GetAsync("/api/monitoring/expected-files?date=2026-11-21");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var rows = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(1, rows.GetArrayLength());
+        Assert.Equal("midnight.csv", rows[0].GetProperty("expectedFileName").GetString());
     }
 
     /// <summary>Remplace la connexion SQLite de l'application par une base en mémoire partagée.</summary>
