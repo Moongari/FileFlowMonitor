@@ -146,7 +146,7 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
             existing.MarkStable(now);
             var expectedFile = await db.ExpectedFiles
                 .Where(x => x.MonitoringRuleId == rule.Id &&
-                            x.ExpectedFileName == info.Name &&
+                            x.ExpectedFileName.ToLower() == info.Name.ToLower() &&
                             (x.Status == ExpectedFileStatus.Scheduled ||
                              x.Status == ExpectedFileStatus.Waiting ||
                              x.Status == ExpectedFileStatus.Missing))
