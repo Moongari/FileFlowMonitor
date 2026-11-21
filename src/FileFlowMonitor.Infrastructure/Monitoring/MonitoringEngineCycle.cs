@@ -135,10 +135,9 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                 continue;
             }
 
-            if (existing.StableAtUtc.HasValue)
-                continue;
-
-            if (rule.StabilityPeriodSeconds > 0 &&
+            // A stable file must still be reconciled against expected occurrences
+            // on every cycle. Stability only skips the verification phase, not matching.
+            if (!existing.StableAtUtc.HasValue && rule.StabilityPeriodSeconds > 0 &&
                 now < existing.DetectedAtUtc.AddSeconds(rule.StabilityPeriodSeconds))
                 continue;
 
