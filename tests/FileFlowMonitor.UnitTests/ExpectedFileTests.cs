@@ -32,4 +32,27 @@ public sealed class ExpectedFileTests
 
         Assert.Equal(ExpectedFileStatus.Late, file.Status);
     }
+    [Fact]
+    public void RefreshStatus_DoesNotOverride_ReceivedFile()
+    {
+        var expectedAt = new DateTimeOffset(2026, 11, 21, 8, 0, 0, TimeSpan.Zero);
+        var file = new ExpectedFile(Guid.NewGuid(), "trade.csv", expectedAt, expectedAt.AddMinutes(15));
+        file.MarkReceived(Guid.NewGuid(), expectedAt.AddMinutes(5));
+
+        file.RefreshStatus(expectedAt.AddDays(1));
+
+        Assert.Equal(ExpectedFileStatus.Received, file.Status);
+    }
+
+    [Fact]
+    public void MarkReceived_Classifies_OnTimeArrival()
+    {
+        var expectedAt = new DateTimeOffset(2026, 11, 21, 8, 0, 0, TimeSpan.Zero);
+        var file = new ExpectedFile(Guid.NewGuid(), "trade.csv", expectedAt, expectedAt.AddMinutes(15));
+
+        file.MarkReceived(Guid.NewGuid(), expectedAt.AddMinutes(10));
+
+        Assert.Equal(ExpectedFileStatus.Received, file.Status);
+    }
+
 }
