@@ -60,7 +60,7 @@ public sealed class ExpectedFilePlanner
         var date = DateOnly.FromDateTime(local.DateTime);
         var time = TimeOnly.FromDateTime(local.DateTime);
         var templates = rule.FileNamePattern.Split(
-            new[] { '\r', '\n', ';' },
+            new[] { "\r", "\n", ";" },
             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
         return templates.Any(template =>
@@ -79,7 +79,7 @@ public sealed class ExpectedFilePlanner
             !string.IsNullOrWhiteSpace(rule.FileNamePattern))
         {
             var templates = rule.FileNamePattern
-                .Split(new[] { '\r', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                .Split(new[] { "\r", "\n", ";" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             return templates.Select(template => ExpandTemplate(template, date, time, time.ToString("HHmmss")))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
