@@ -85,11 +85,12 @@ public static class MonitoringRuleEndpoints
             Guid id,
             MonitoringRuleRequest request,
             MonitoringRuleService service,
-            [FromServices] ILogger<MonitoringRuleEndpoints> logger,
+            [FromServices] ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
             var validation = Validate(request);
             if (validation is not null) return validation;
+            var logger = loggerFactory.CreateLogger("FileFlowMonitor.MonitoringRuleEndpoints");
             try
             {
                 var rule = await service.UpdateAsync(id, request.ToConfiguration(), ct);
