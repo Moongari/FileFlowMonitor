@@ -2,7 +2,7 @@
 @inject IHttpClientFactory ClientFactory
 <PageTitle>Fichiers et incidents | FileFlow Monitor</PageTitle>
 <div class="page-heading"><div><div class="eyebrow">ACTIVITÉ OPÉRATIONNELLE</div><h1>Fichiers & incidents</h1><p>Suivez les réceptions attendues, les fichiers détectés et les anomalies.</p></div><button class="button-secondary" @onclick="LoadAsync">↻ Actualiser</button></div>
-<div class="tabs"><button class="@TabClass("expected")" @onclick="() => Select("expected")">Fichiers attendus</button><button class="@TabClass("received")" @onclick="() => Select("received")">Fichiers détectés</button><button class="@TabClass("incidents")" @onclick="() => Select("incidents")">Incidents</button><button class="@TabClass("executions")" @onclick="() => Select("executions")">Cycles moteur</button></div>
+<div class="tabs"><button class='@TabClass("expected")' @onclick='() => Select("expected")'>Fichiers attendus</button><button class='@TabClass("received")' @onclick='() => Select("received")'>Fichiers détectés</button><button class='@TabClass("incidents")' @onclick='() => Select("incidents")'>Incidents</button><button class='@TabClass("executions")' @onclick='() => Select("executions")'>Cycles moteur</button></div>
 @if (!string.IsNullOrEmpty(_error)){<div class="alert alert-error">@_error</div>}
 <section class="panel">
 <div class="panel-heading"><div><h2>@TabTitle</h2><p>@TabDescription</p></div>
