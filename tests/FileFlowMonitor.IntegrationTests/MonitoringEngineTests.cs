@@ -36,6 +36,8 @@ public sealed class MonitoringEngineTests
                     ["trades.csv"], ["csv"], [schedule], WeekDays.EveryDay,
                     TimeZoneInfo.Utc.Id, 15, 0, true));
                 ruleId = rule.Id;
+                Assert.Single(rule.ScheduleTimes);
+                Assert.Single(new ExpectedFilePlanner().Plan(rule, DateOnly.FromDateTime(DateTime.UtcNow)));
             }
 
             // First cycle creates the expected occurrence and records the new file.
@@ -48,6 +50,9 @@ public sealed class MonitoringEngineTests
 
             await using (var verify = new FileFlowDbContext(options))
             {
+                var executions = await verify.MonitoringExecutions.Where(x => x.MonitoringRuleId == ruleId).ToListAsync();
+                Assert.Equal(2, executions.Count);
+                Assert.All(executions, x => Assert.Null(x.Error));
                 var expected = await verify.ExpectedFiles.SingleAsync(x => x.MonitoringRuleId == ruleId);
                 var received = await verify.ReceivedFiles.SingleAsync(x => x.MonitoringRuleId == ruleId);
                 Assert.Equal(ExpectedFileStatus.Received, expected.Status);
