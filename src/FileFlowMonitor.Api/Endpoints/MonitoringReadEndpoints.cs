@@ -11,44 +11,90 @@ public static class MonitoringReadEndpoints
     {
         var group = endpoints.MapGroup("/api/monitoring").WithTags("Monitoring");
 
-        group.MapGet("/overview", async (FileFlowDbContext db, CancellationToken ct) =>
+        group.MapGet("/overview", async (FileFlowDbContext db, DateOnly? date, CancellationToken ct) =>
         {
             var now = DateTimeOffset.UtcNow;
-            var rules = await db.MonitoringRules.AsNoTracking().Include(x => x.ScheduleTimes).ToListAsync(ct);
+            var rules = await db.MonitoringRules.AsNoTracking()
+                .Include(x => x.ScheduleTimes).OrderBy(x => x.Name).ToListAsync(ct);
             var zones = rules.ToDictionary(x => x.Id, x => TimeZoneInfo.FindSystemTimeZoneById(x.TimeZoneId));
-            // SQLite stores DateTimeOffset as text by default and cannot range-filter/order it.
-            // Keep the existing schema and evaluate each expected item on its rule's business date.
-            var expected = (await db.ExpectedFiles.AsNoTracking().ToListAsync(ct))
-                .Where(x => x.Status != ExpectedFileStatus.Cancelled &&
-                    zones.TryGetValue(x.MonitoringRuleId, out var zone) &&
-                    DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(x.ExpectedAtUtc, zone).DateTime) ==
-                    DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, zone).DateTime))
-                .ToList();
+            var expectedAll = await db.ExpectedFiles.AsNoTracking().ToListAsync(ct);
+            var selectedByRule = expectedAll.Where(x =>
+            {
+                if (!zones.TryGetValue(x.MonitoringRuleId, out var zone) ||
+                    x.Status == ExpectedFileStatus.Cancelled) return false;
+                var businessDate = date ?? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, zone).DateTime);
+                return DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(x.ExpectedAtUtc, zone).DateTime) == businessDate;
+            }).ToList();
+
+            var ruleNames = rules.ToDictionary(x => x.Id, x => x.Name);
+            var summaries = rules.Select(rule =>
+            {
+                var items = selectedByRule.Where(x => x.MonitoringRuleId == rule.Id).ToList();
+                var received = items.Count(x => x.Status == ExpectedFileStatus.Received);
+                var late = items.Count(x => x.Status == ExpectedFileStatus.Late);
+                var missing = items.Count(x => x.Status == ExpectedFileStatus.Missing);
+                var invalid = items.Count(x => x.Status == ExpectedFileStatus.Invalid);
+                var waiting = items.Count(x => x.Status == ExpectedFileStatus.Waiting);
+                var scheduled = items.Count(x => x.Status == ExpectedFileStatus.Scheduled);
+                var zone = zones[rule.Id];
+                var folderAvailable = Directory.Exists(rule.FolderPath);
+                var health = !rule.IsEnabled ? "Disabled"
+                    : !folderAvailable ? "FolderUnavailable"
+                    : missing > 0 || invalid > 0 ? "Attention"
+                    : late > 0 ? "Delayed"
+                    : "Healthy";
+                return new
+                {
+                    rule.Id, rule.Name, rule.FolderPath, rule.IsEnabled, rule.GracePeriodMinutes,
+                    timeZoneId = rule.TimeZoneId,
+                    scheduleTimes = rule.ScheduleTimes.Select(t => t.ExpectedTime).OrderBy(t => t).ToArray(),
+                    expected = items.Count, received, late, missing, invalid, waiting, scheduled,
+                    healthStatus = health
+                };
+            }).ToList();
+
             var allIncidents = await db.MonitoringIncidents.AsNoTracking().ToListAsync(ct);
             var incidents = allIncidents.Where(x => x.ResolvedAtUtc == null)
                 .OrderByDescending(x => x.OccurredAtUtc).Take(10).ToList();
+            var openIncidentCount = allIncidents.Count(x => x.ResolvedAtUtc == null &&
+                zones.TryGetValue(x.MonitoringRuleId, out var incidentZone) &&
+                DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(x.OccurredAtUtc, incidentZone).DateTime) ==
+                (date ?? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, incidentZone).DateTime)));
             var executions = (await db.MonitoringExecutions.AsNoTracking().ToListAsync(ct))
                 .OrderByDescending(x => x.StartedAtUtc).Take(10).ToList();
+
+            var expectedRows = selectedByRule.OrderBy(x => x.ExpectedAtUtc).ThenBy(x => x.ExpectedFileName)
+                .Select(x =>
+                {
+                    var zone = zones[x.MonitoringRuleId];
+                    return new
+                    {
+                        x.Id, x.MonitoringRuleId,
+                        ruleName = ruleNames.GetValueOrDefault(x.MonitoringRuleId, "Règle inconnue"),
+                        x.ExpectedFileName, x.ExpectedAtUtc, x.DeadlineAtUtc, x.ReceivedAtUtc,
+                        receivedAtLocal = x.ReceivedAtUtc.HasValue ? TimeZoneInfo.ConvertTime(x.ReceivedAtUtc.Value, zone).ToString("yyyy-MM-dd HH:mm:ss") : null,
+                        expectedAtLocal = TimeZoneInfo.ConvertTime(x.ExpectedAtUtc, zone).ToString("yyyy-MM-dd HH:mm:ss"),
+                        deadlineAtLocal = TimeZoneInfo.ConvertTime(x.DeadlineAtUtc, zone).ToString("yyyy-MM-dd HH:mm:ss"),
+                        status = x.Status.ToString()
+                    };
+                }).ToList();
 
             return Results.Ok(new
             {
                 generatedAtUtc = now,
+                selectedDate = date?.ToString("yyyy-MM-dd"),
                 rulesTotal = rules.Count,
                 rulesEnabled = rules.Count(x => x.IsEnabled),
-                expectedToday = expected.Count,
-                receivedToday = expected.Count(x => x.Status == ExpectedFileStatus.Received),
-                lateToday = expected.Count(x => x.Status == ExpectedFileStatus.Late),
-                missingToday = expected.Count(x => x.Status == ExpectedFileStatus.Missing),
-                invalidToday = expected.Count(x => x.Status == ExpectedFileStatus.Invalid),
-                openIncidents = allIncidents.Count(x => x.ResolvedAtUtc == null &&
-                    zones.TryGetValue(x.MonitoringRuleId, out var incidentZone) &&
-                    DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(x.OccurredAtUtc, incidentZone).DateTime) ==
-                    (date ?? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, incidentZone).DateTime))),
-                rules = rules.OrderBy(x => x.Name).Select(x => new
-                {
-                    x.Id, x.Name, x.FolderPath, x.IsEnabled, x.GracePeriodMinutes,
-                    scheduleTimes = x.ScheduleTimes.Select(t => t.ExpectedTime).OrderBy(t => t).ToArray()
-                }),
+                expectedToday = selectedByRule.Count,
+                receivedToday = selectedByRule.Count(x => x.Status == ExpectedFileStatus.Received),
+                lateToday = selectedByRule.Count(x => x.Status == ExpectedFileStatus.Late),
+                missingToday = selectedByRule.Count(x => x.Status == ExpectedFileStatus.Missing),
+                invalidToday = selectedByRule.Count(x => x.Status == ExpectedFileStatus.Invalid),
+                waitingToday = selectedByRule.Count(x => x.Status == ExpectedFileStatus.Waiting),
+                scheduledToday = selectedByRule.Count(x => x.Status == ExpectedFileStatus.Scheduled),
+                openIncidents = openIncidentCount,
+                ruleSummaries = summaries,
+                expectedFiles = expectedRows,
                 latestIncidents = incidents.Select(x => new
                 {
                     x.Id, x.MonitoringRuleId, x.Code, x.Message, x.OccurredAtUtc
@@ -61,59 +107,54 @@ public static class MonitoringReadEndpoints
             });
         })
         .WithName("GetMonitoringOverview")
-        .WithSummary("Vue d'ensemble de la supervision")
+        .WithSummary("Vue d'ensemble de la supervision pour une journée")
         .WithDescription("""
-            Retourne les indicateurs du jour, l'état des règles, les incidents ouverts et les dernières exécutions.
-            Exemple de réponse :
-            {
-              "generatedAtUtc": "2026-11-21T08:15:00Z",
-              "rulesTotal": 3,
-              "rulesEnabled": 3,
-              "expectedToday": 6,
-              "receivedToday": 5,
-              "lateToday": 0,
-              "missingToday": 1,
-              "openIncidents": 1
-            }
+            Retourne les indicateurs globaux, les compteurs par règle et chaque fichier attendu pour la date métier sélectionnée.
+            Le paramètre date (AAAA-MM-JJ) est facultatif. Sans date, chaque règle utilise sa date locale courante.
+            Les règles restent permanentes ; les occurrences journalières sont générées par le moteur et conservées pour l'historique.
+            Exemple : GET /api/monitoring/overview?date=2026-11-21.
             """)
         .Produces(StatusCodes.Status200OK);
 
         group.MapGet("/expected-files", async (
             FileFlowDbContext db, DateOnly? date, Guid? ruleId, ExpectedFileStatus? status, CancellationToken ct) =>
         {
-            var selectedDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
+            var now = DateTimeOffset.UtcNow;
             var rules = await db.MonitoringRules.AsNoTracking()
-                .Select(x => new { x.Id, x.TimeZoneId }).ToListAsync(ct);
-            var zones = rules.ToDictionary(x => x.Id, x => TimeZoneInfo.FindSystemTimeZoneById(x.TimeZoneId));
+                .Select(x => new { x.Id, x.Name, x.TimeZoneId }).ToListAsync(ct);
+            var ruleMap = rules.ToDictionary(x => x.Id,
+                x => (x.Name, Zone: TimeZoneInfo.FindSystemTimeZoneById(x.TimeZoneId)));
             var expected = await db.ExpectedFiles.AsNoTracking().ToListAsync(ct);
             var filtered = expected.Where(x =>
-                zones.TryGetValue(x.MonitoringRuleId, out var zone)
-                    ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(x.ExpectedAtUtc, zone).DateTime) == selectedDate
-                    : DateOnly.FromDateTime(x.ExpectedAtUtc.UtcDateTime) == selectedDate);
+            {
+                if (!ruleMap.TryGetValue(x.MonitoringRuleId, out var rule)) return false;
+                var businessDate = date ?? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, rule.Zone).DateTime);
+                return DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(x.ExpectedAtUtc, rule.Zone).DateTime) == businessDate;
+            });
             if (ruleId.HasValue) filtered = filtered.Where(x => x.MonitoringRuleId == ruleId.Value);
             if (status.HasValue) filtered = filtered.Where(x => x.Status == status.Value);
-            var rows = filtered.OrderBy(x => x.ExpectedAtUtc).Select(x => new
+            var rows = filtered.OrderBy(x => x.ExpectedAtUtc).ThenBy(x => x.ExpectedFileName).Select(x =>
             {
-                x.Id, x.MonitoringRuleId, x.ExpectedFileName, x.ExpectedAtUtc,
-                x.DeadlineAtUtc, x.ReceivedAtUtc, status = x.Status.ToString()
+                var rule = ruleMap[x.MonitoringRuleId];
+                return new
+                {
+                    x.Id, x.MonitoringRuleId, ruleName = rule.Name, x.ExpectedFileName,
+                    x.ExpectedAtUtc, x.DeadlineAtUtc, x.ReceivedAtUtc,
+                    receivedAtLocal = x.ReceivedAtUtc.HasValue ? TimeZoneInfo.ConvertTime(x.ReceivedAtUtc.Value, rule.Zone).ToString("yyyy-MM-dd HH:mm:ss") : null,
+                    expectedAtLocal = TimeZoneInfo.ConvertTime(x.ExpectedAtUtc, rule.Zone).ToString("yyyy-MM-dd HH:mm:ss"),
+                    deadlineAtLocal = TimeZoneInfo.ConvertTime(x.DeadlineAtUtc, rule.Zone).ToString("yyyy-MM-dd HH:mm:ss"),
+                    status = x.Status.ToString()
+                };
             }).ToList();
             return Results.Ok(rows);
         })
         .WithName("GetExpectedFiles")
-        .WithSummary("Consulter les fichiers attendus")
+        .WithSummary("Consulter les fichiers attendus d'une journée et d'un flux")
         .WithDescription("""
-            Liste les fichiers attendus pour une date métier locale.
+            Liste individuellement les fichiers attendus pour une date métier locale, avec le nom de la règle et les heures locales.
             Exemple : GET /api/monitoring/expected-files?date=2026-11-21&status=Missing.
             Filtres facultatifs : date (AAAA-MM-JJ), ruleId et status (Scheduled, Waiting, Missing, Received, Late, Invalid, Duplicate, Cancelled).
-            Exemple de réponse :
-            [
-              {
-                "expectedFileName": "trades.csv",
-                "expectedAtUtc": "2026-11-21T07:00:00Z",
-                "deadlineAtUtc": "2026-11-21T07:15:00Z",
-                "status": "Missing"
-              }
-            ]
+            Sans date, utilise la date locale de chaque règle.
             """)
         .Produces(StatusCodes.Status200OK);
 
@@ -133,16 +174,6 @@ public static class MonitoringReadEndpoints
         .WithDescription("""
             Retourne les derniers fichiers observés par le moteur, avec chemin, taille, date de détection et date de stabilisation.
             Paramètre limit : 1 à 500, 100 par défaut.
-            Exemple de réponse :
-            [
-              {
-                "fileName": "trades.csv",
-                "fullPath": "D:\\FileFlow\\Citi\\trades.csv",
-                "sizeBytes": 24576,
-                "detectedAtUtc": "2026-11-21T07:01:00Z",
-                "stableAtUtc": "2026-11-21T07:01:05Z"
-              }
-            ]
             """)
         .Produces(StatusCodes.Status200OK);
 
@@ -163,16 +194,8 @@ public static class MonitoringReadEndpoints
         .WithSummary("Consulter les incidents")
         .WithDescription("""
             Liste les incidents de surveillance. Utiliser openOnly=true pour ne voir que les incidents non résolus.
+            Les fichiers manquants possèdent un incident lié à leur occurrence attendue.
             Limite comprise entre 1 et 500.
-            Exemple de réponse :
-            [
-              {
-                "code": "FOLDER_UNAVAILABLE",
-                "message": "Le dossier source est inaccessible",
-                "occurredAtUtc": "2026-11-21T07:00:00Z",
-                "isResolved": false
-              }
-            ]
             """)
         .Produces(StatusCodes.Status200OK);
 
@@ -191,16 +214,7 @@ public static class MonitoringReadEndpoints
         .WithName("GetMonitoringExecutions")
         .WithSummary("Consulter l'historique des cycles")
         .WithDescription("""
-            Retourne les dernières exécutions du moteur, leur durée, le nombre de fichiers détectés et les erreurs éventuelles.
-            Exemple de réponse :
-            [
-              {
-                "startedAtUtc": "2026-11-21T07:00:00Z",
-                "completedAtUtc": "2026-11-21T07:00:02Z",
-                "filesDiscovered": 2,
-                "error": null
-              }
-            ]
+            Retourne les dernières exécutions du moteur de réconciliation, leur durée, le nombre de fichiers détectés et les erreurs éventuelles.
             """)
         .Produces(StatusCodes.Status200OK);
 

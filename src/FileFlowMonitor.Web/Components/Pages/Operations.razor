@@ -37,7 +37,7 @@ else{
    var url=_tab switch{"expected"=>$"api/monitoring/expected-files?date={_date:yyyy-MM-dd}","received"=>"api/monitoring/received-files?limit=200","incidents"=>"api/monitoring/incidents?limit=200","executions"=>"api/monitoring/executions?limit=200",_=>""};
    using var doc=await api.GetFromJsonAsync<JsonDocument>(url);_rows=doc?.RootElement.EnumerateArray().Select(x=>x.Clone()).ToList()??[];
    (_keys,_columns)=_tab switch{
-    "expected"=>(new[] {"expectedFileName","expectedAtUtc","deadlineAtUtc","receivedAtUtc","status"},new[] {"Fichier attendu","Échéance","Limite de grâce","Réception","Statut"}),
+    "expected"=>(new[] {"ruleName","expectedFileName","expectedAtLocal","deadlineAtLocal","receivedAtLocal","status"},new[] {"Flux","Fichier attendu","Heure prévue","Échéance","Réception","Statut"}),
     "received"=>(new[] {"fileName","fullPath","sizeBytes","detectedAtUtc","stableAtUtc"},new[] {"Fichier","Chemin complet","Taille (octets)","Détecté le","Stable depuis"}),
     "incidents"=>(new[] {"code","message","occurredAtUtc","isResolved","resolvedAtUtc"},new[] {"Code","Description","Détecté le","Résolu","Résolu le"}),
     _=>(new[] {"startedAtUtc","completedAtUtc","filesDiscovered","error"},new[] {"Démarré le","Terminé le","Fichiers détectés","Erreur"})};
@@ -47,6 +47,7 @@ else{
  private string Cell(JsonElement row,string key){
   if(!row.TryGetProperty(key,out var v)||v.ValueKind==JsonValueKind.Null)return "—";
   if(key.EndsWith("AtUtc")&&v.ValueKind==JsonValueKind.String&&v.TryGetDateTimeOffset(out var dt))return dt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss");
+  if((key is "expectedAtLocal" or "deadlineAtLocal" or "receivedAtLocal")&&v.ValueKind==JsonValueKind.String&&DateTime.TryParse(v.GetString(),out var local))return local.ToString("dd/MM/yyyy HH:mm:ss");
   if(key=="sizeBytes"&&v.TryGetInt64(out var bytes))return bytes.ToString("N0");
   if(key=="isResolved")return v.GetBoolean()?"Oui":"Non";
   if(key=="status"&&v.ValueKind==JsonValueKind.String)return v.GetString() switch{"Received"=>"Reçu","Late"=>"En retard","Missing"=>"Manquant","Waiting"=>"En attente","Scheduled"=>"Planifié","Invalid"=>"Invalide","Duplicate"=>"Doublon","Cancelled"=>"Annulé",_=>v.GetString()??"—"};
