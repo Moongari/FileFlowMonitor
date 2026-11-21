@@ -7,7 +7,7 @@
 @if (!string.IsNullOrEmpty(_error)){<div class="alert alert-error">@_error</div>}
 <section class="panel">
 <div class="panel-heading"><div><h2>@TabTitle</h2><p>@TabDescription</p></div>
-@if(_tab=="expected"){<input class="date-filter" type="date" @bind="_date" />}
+@if(_tab=="expected"){<input class="date-filter" type="date" @bind="_date" @bind:after="LoadAsync" />}
 </div>
 @if(_loading){<div class="loading-panel">Chargement des données…</div>}
 else if(_rows.Count==0){<div class="empty-state"><div class="empty-icon">✓</div><h3>Aucune donnée à afficher</h3><p>Les éléments apparaîtront dès que le moteur aura effectué ses premières réconciliations.</p></div>}
