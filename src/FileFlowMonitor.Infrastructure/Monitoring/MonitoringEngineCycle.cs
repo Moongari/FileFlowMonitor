@@ -61,26 +61,22 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
         var localDate = DateOnly.FromDateTime(
             TimeZoneInfo.ConvertTime(now, TimeZoneInfo.FindSystemTimeZoneById(rule.TimeZoneId)).DateTime);
 
-        // Plan today and tomorrow in advance. The unique index in SQLite is the
-        // final guard against duplicate occurrences across repeated cycles.
+        // Load persisted occurrences once, then keep the in-memory key set updated
+        // while planning both dates. This also deduplicates within a single cycle.
+        var existing = await db.ExpectedFiles
+            .Where(x => x.MonitoringRuleId == rule.Id)
+            .Select(x => new { x.ExpectedAtUtc, x.ExpectedFileName })
+            .ToListAsync(cancellationToken);
+        var existingKeys = existing
+            .Select(x => (x.ExpectedAtUtc.UtcDateTime.Ticks, x.ExpectedFileName.ToUpperInvariant()))
+            .ToHashSet();
+
         foreach (var date in new[] { localDate, localDate.AddDays(1) })
         {
             var planned = planner.Plan(rule, date);
-            if (planned.Count == 0) continue;
-
-            // Compare stable occurrence keys in memory. This prevents repeated cycles
-            // from enqueueing the same occurrence twice.
-            var existing = await db.ExpectedFiles
-                .Where(x => x.MonitoringRuleId == rule.Id)
-                .Select(x => new { x.ExpectedAtUtc, x.ExpectedFileName })
-                .ToListAsync(cancellationToken);
-            var existingKeys = existing
-                .Select(x => (x.ExpectedAtUtc.UtcTicks, x.ExpectedFileName.ToUpperInvariant()))
-                .ToHashSet();
-
             foreach (var item in planned)
             {
-                var key = (item.ExpectedAtUtc.UtcTicks, item.ExpectedFileName.ToUpperInvariant());
+                var key = (item.ExpectedAtUtc.UtcDateTime.Ticks, item.ExpectedFileName.ToUpperInvariant());
                 if (existingKeys.Add(key))
                     db.ExpectedFiles.Add(item);
             }
