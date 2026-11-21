@@ -22,4 +22,4 @@ app.MapGet("/health/database", async (FileFlowDbContext db, CancellationToken ct
 
 app.Run();
 
-public partial class Program;
+public partial class Program { }
