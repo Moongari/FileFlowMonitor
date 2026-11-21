@@ -3,9 +3,10 @@
 ## Phase 1 — Fondations et modèle métier
 - [x] Dépôt GitHub créé.
 - [x] Branche `feature/initial-architecture` créée depuis `main`.
-- [ ] Solution .NET et projets Clean Architecture.
-- [ ] Entités, enums, contrats et tests du domaine.
-- [ ] Documentation d'architecture et de conception.
+- [x] Solution .NET multi-cible .NET 8 / .NET 10.
+- [x] Projets Clean Architecture et configuration SQLite.
+- [x] Entités, enums, contrats et premiers tests du domaine.
+- [x] Documentation d'architecture et de conception.
 
 ## Phase 2 — Gestion des règles et API REST
 - [x] CRUD des règles dans Domain / Application / Infrastructure.
@@ -14,22 +15,23 @@
 - [x] Swagger / OpenAPI avec résumés, descriptions et commentaires XML.
 - [x] Documentation des endpoints dans `docs/API.md`.
 - [ ] Génération des occurrences attendues à partir des règles et du calendrier.
+- [ ] Validation réelle de la compilation et des tests sur .NET 8 et .NET 10 dans la CI.
 
 ## Phase 3 — Moteur de surveillance
-- Watcher et scan périodique.
-- Contrôle de stabilité et déduplication.
-- Matching, retards, absences et indisponibilité des dossiers.
-- Persistance et reprise après redémarrage.
+- [ ] Watcher et scan périodique.
+- [ ] Contrôle de stabilité et déduplication.
+- [ ] Matching, retards, absences et indisponibilité des dossiers.
+- [ ] Persistance et reprise après redémarrage.
 
 ## Phase 4 — Tableau de bord temps réel
-- API et hub SignalR.
-- Vue globale et détail par dossier/règle.
-- Liste exacte des fichiers manquants, échéances et arrivées.
+- [ ] API et hub SignalR.
+- [ ] Vue globale et détail par dossier/règle.
+- [ ] Liste exacte des fichiers manquants, échéances et arrivées.
 
 ## Phase 5 — Alertes et exploitation
-- Notifications configurables.
-- Historique, recherche et export.
-- Tests d'intégration, robustesse réseau et documentation de déploiement.
+- [ ] Notifications configurables.
+- [ ] Historique, recherche et export.
+- [ ] Tests d'intégration, robustesse réseau et documentation de déploiement.
 
 ## Critères de validation MVP
 - Plusieurs dossiers surveillés simultanément.
