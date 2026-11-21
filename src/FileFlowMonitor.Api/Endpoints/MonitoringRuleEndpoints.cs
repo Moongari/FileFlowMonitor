@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 using FileFlowMonitor.Api.Contracts;
 using FileFlowMonitor.Application.MonitoringRules;
 
@@ -79,7 +80,12 @@ public static class MonitoringRuleEndpoints
         .Produces<MonitoringRuleResponse>(StatusCodes.Status201Created).ProducesValidationProblem();
 
         // Remplace la configuration complète d'une règle existante.
-        group.MapPut("/{id:guid}", async (Guid id, MonitoringRuleRequest request, MonitoringRuleService service, CancellationToken ct) =>
+        group.MapPut("/{id:guid}", async (
+            Guid id,
+            MonitoringRuleRequest request,
+            MonitoringRuleService service,
+            ILogger<MonitoringRuleEndpoints> logger,
+            CancellationToken ct) =>
         {
             var validation = Validate(request);
             if (validation is not null) return validation;
@@ -87,6 +93,28 @@ public static class MonitoringRuleEndpoints
             {
                 var rule = await service.UpdateAsync(id, request.ToConfiguration(), ct);
                 return rule is null ? Results.NotFound() : Results.Ok(MonitoringRuleResponse.FromEntity(rule));
+            }
+            catch (DbUpdateConcurrencyException exception)
+            {
+                var affectedEntries = exception.Entries.Select(entry =>
+                {
+                    var key = entry.Properties
+                        .Where(property => property.Metadata.IsPrimaryKey())
+                        .Select(property => $"{property.Metadata.Name}={property.CurrentValue ?? property.OriginalValue}");
+                    return $"{entry.Metadata.ClrType.Name} [{string.Join(", ", key)}] ({entry.State})";
+                }).ToArray();
+
+                logger.LogError(exception,
+                    "Concurrency conflict while updating monitoring rule {RuleId}. Affected EF entries: {Entries}",
+                    id,
+                    string.Join("; ", affectedEntries));
+
+                return Results.Conflict(new ProblemDetails
+                {
+                    Title = "Conflit lors de l'enregistrement de la règle",
+                    Detail = "Une donnée liée à cette règle a changé ou a été supprimée pendant l'enregistrement. Consultez les journaux de l'API pour identifier l'entité concernée, puis réessayez.",
+                    Status = StatusCodes.Status409Conflict
+                });
             }
             catch (Exception exception) when (IsValidationException(exception)) { return ValidationError(exception); }
         })
