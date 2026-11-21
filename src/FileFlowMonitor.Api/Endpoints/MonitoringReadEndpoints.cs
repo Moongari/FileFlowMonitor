@@ -11,6 +11,44 @@ public static class MonitoringReadEndpoints
     {
         var group = endpoints.MapGroup("/api/monitoring").WithTags("Monitoring");
 
+        group.MapPost("/reconcile", async (
+            FileFlowDbContext db, FileFlowMonitor.Infrastructure.Monitoring.MonitoringEngineCycle cycle,
+            Guid? ruleId, CancellationToken ct) =>
+        {
+            if (ruleId.HasValue)
+            {
+                var exists = await db.MonitoringRules.AnyAsync(x => x.Id == ruleId.Value, ct);
+                if (!exists) return Results.NotFound(new { message = "Règle de surveillance introuvable." });
+                var enabled = await db.MonitoringRules.AnyAsync(x => x.Id == ruleId.Value && x.IsEnabled, ct);
+                if (!enabled) return Results.BadRequest(new { message = "La règle est désactivée. Activez-la avant de forcer la réconciliation." });
+            }
+
+            var startedAt = DateTimeOffset.UtcNow;
+            await cycle.ExecuteAsync(ct, ruleId);
+            var executions = db.MonitoringExecutions.AsNoTracking()
+                .Where(x => x.StartedAtUtc >= startedAt.AddSeconds(-1));
+            var completed = await executions.CountAsync(x => x.CompletedAtUtc != null && x.Error == null, ct);
+            var failed = await executions.CountAsync(x => x.Error != null, ct);
+            return Results.Ok(new
+            {
+                message = "Réconciliation terminée.",
+                startedAtUtc = startedAt,
+                completedRules = completed,
+                failedRules = failed
+            });
+        })
+        .WithName("ForceMonitoringReconciliation")
+        .WithSummary("Forcer immédiatement la réconciliation des dossiers surveillés")
+        .WithDescription("""
+            Déclenche immédiatement le même cycle que la surveillance automatique, sans attendre le prochain intervalle.
+            Facultatif : ruleId pour ne réconcilier qu'une règle précise. Sans ruleId, toutes les règles actives sont traitées.
+            Exemple : POST /api/monitoring/reconcile
+            Exemple ciblé : POST /api/monitoring/reconcile?ruleId=00000000-0000-0000-0000-000000000001
+            Le dossier est rescanné, les fichiers stables sont rapprochés des occurrences attendues et les incidents correspondants sont résolus.
+            """)
+        .Produces(StatusCodes.Status200OK).Produces(StatusCodes.Status404NotFound).Produces(StatusCodes.Status400BadRequest);
+
+
         group.MapGet("/overview", async (FileFlowDbContext db, DateOnly? date, CancellationToken ct) =>
         {
             var now = DateTimeOffset.UtcNow;
