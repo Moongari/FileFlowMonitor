@@ -24,10 +24,11 @@ public sealed class MonitoringRuleRepository(FileFlowDbContext dbContext) : IMon
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UpdateAsync(MonitoringRule rule, CancellationToken cancellationToken = default)
+    public Task UpdateAsync(MonitoringRule rule, CancellationToken cancellationToken = default)
     {
-        dbContext.MonitoringRules.Update(rule);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        // GetByIdAsync returns a tracked aggregate. Preserve EF Core's change
+        // tracking so replaced ScheduleTime children are handled as deletes/adds.
+        return dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(MonitoringRule rule, CancellationToken cancellationToken = default)
