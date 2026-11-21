@@ -24,16 +24,17 @@ public sealed class ExpectedFilePlannerTests
     }
 
     [Fact]
-    public void Plan_DoesNotGuessNamesForPatternOnlyRule()
+    public void Plan_CreatesExpectedSlotsForPatternRule()
     {
         var rule = new MonitoringRule("Citi", @"D:\Inbound", MatchingMode.Pattern);
-        rule.ConfigureMatching(MatchingMode.Pattern, "trade*.csv", 2);
+        rule.ConfigureMatching(MatchingMode.Pattern, @"^trade.*\.csv$", 2);
         rule.ConfigureCalendar(WeekDays.EveryDay, "UTC");
         rule.ScheduleTimes.Add(new ScheduleTime(rule.Id, new TimeOnly(8, 0)));
 
         var result = new ExpectedFilePlanner().Plan(rule, new DateOnly(2026, 11, 21));
 
-        Assert.Empty(result);
+        Assert.Equal(2, result.Count);
+        Assert.Equal(["Pattern match 01", "Pattern match 02"], result.Select(x => x.ExpectedFileName));
     }
     [Fact]
     public void Plan_Expands_Date_Tokens_In_FileNameTemplate()
