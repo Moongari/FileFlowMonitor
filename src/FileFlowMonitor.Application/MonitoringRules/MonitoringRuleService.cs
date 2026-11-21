@@ -29,6 +29,7 @@ public sealed class MonitoringRuleService(IMonitoringRuleRepository repository)
         var rule = await repository.GetByIdAsync(id, cancellationToken);
         if (rule is null) return null;
 
+        await repository.CancelFutureExpectedFilesAsync(id, DateTimeOffset.UtcNow, cancellationToken);
         rule.Rename(configuration.Name);
         rule.SetFolderPath(configuration.FolderPath);
         Apply(rule, configuration);
@@ -40,6 +41,8 @@ public sealed class MonitoringRuleService(IMonitoringRuleRepository repository)
     {
         var rule = await repository.GetByIdAsync(id, cancellationToken);
         if (rule is null) return false;
+        if (!enabled)
+            await repository.CancelFutureExpectedFilesAsync(id, DateTimeOffset.UtcNow, cancellationToken);
         rule.SetEnabled(enabled);
         await repository.UpdateAsync(rule, cancellationToken);
         return true;
@@ -49,6 +52,7 @@ public sealed class MonitoringRuleService(IMonitoringRuleRepository repository)
     {
         var rule = await repository.GetByIdAsync(id, cancellationToken);
         if (rule is null) return false;
+        await repository.CancelFutureExpectedFilesAsync(id, DateTimeOffset.UtcNow, cancellationToken);
         await repository.DeleteAsync(rule, cancellationToken);
         return true;
     }
