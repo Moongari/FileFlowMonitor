@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      All projects inherit these target frameworks so Domain, Application,
+      Infrastructure, API, Web and tests stay aligned on the same runtimes.
+      Use -p:TargetFrameworks=net8.0 when building with a .NET 8-only SDK.
+    -->
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

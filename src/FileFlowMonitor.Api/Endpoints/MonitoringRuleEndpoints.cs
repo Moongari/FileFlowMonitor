@@ -1,0 +1,106 @@
+using System.ComponentModel.DataAnnotations;
+using FileFlowMonitor.Api.Contracts;
+using FileFlowMonitor.Application.MonitoringRules;
+
+namespace FileFlowMonitor.Api.Endpoints;
+
+/// <summary>Déclare les routes HTTP de gestion des règles de surveillance.</summary>
+public static class MonitoringRuleEndpoints
+{
+    /// <summary>Enregistre les endpoints CRUD sous /api/monitoring-rules.</summary>
+    public static IEndpointRouteBuilder MapMonitoringRuleEndpoints(this IEndpointRouteBuilder endpoints)
+    {
+        var group = endpoints.MapGroup("/api/monitoring-rules").WithTags("Monitoring rules");
+
+        // Liste toutes les règles, actives ou désactivées.
+        group.MapGet("/", async (MonitoringRuleService service, CancellationToken ct) =>
+            Results.Ok((await service.GetAllAsync(ct)).Select(MonitoringRuleResponse.FromEntity)))
+            .WithName("GetMonitoringRules").WithSummary("Lister les règles de surveillance")
+            .WithDescription("Retourne toutes les règles configurées, qu'elles soient actives ou désactivées.")
+            .Produces<IReadOnlyList<MonitoringRuleResponse>>(StatusCodes.Status200OK);
+
+        // Recherche une règle par identifiant.
+        group.MapGet("/{id:guid}", async (Guid id, MonitoringRuleService service, CancellationToken ct) =>
+        {
+            var rule = await service.GetByIdAsync(id, ct);
+            return rule is null ? Results.NotFound() : Results.Ok(MonitoringRuleResponse.FromEntity(rule));
+        })
+        .WithName("GetMonitoringRuleById").WithSummary("Consulter une règle")
+        .WithDescription("Retourne la configuration complète d'une règle, y compris ses horaires, jours et formats autorisés.")
+        .Produces<MonitoringRuleResponse>(StatusCodes.Status200OK).Produces(StatusCodes.Status404NotFound);
+
+        // Valide le contrat, applique les invariants métier et crée la ressource.
+        group.MapPost("/", async (MonitoringRuleRequest request, MonitoringRuleService service, CancellationToken ct) =>
+        {
+            var validation = Validate(request);
+            if (validation is not null) return validation;
+            try
+            {
+                var rule = await service.CreateAsync(request.ToConfiguration(), ct);
+                return Results.Created($"/api/monitoring-rules/{rule.Id}", MonitoringRuleResponse.FromEntity(rule));
+            }
+            catch (Exception exception) when (IsValidationException(exception)) { return ValidationError(exception); }
+        })
+        .WithName("CreateMonitoringRule").WithSummary("Créer une règle de surveillance")
+        .WithDescription("Crée une règle avec son dossier, son mode de matching, ses horaires, son calendrier et ses tolérances.")
+        .Produces<MonitoringRuleResponse>(StatusCodes.Status201Created).ProducesValidationProblem();
+
+        // Remplace la configuration complète d'une règle existante.
+        group.MapPut("/{id:guid}", async (Guid id, MonitoringRuleRequest request, MonitoringRuleService service, CancellationToken ct) =>
+        {
+            var validation = Validate(request);
+            if (validation is not null) return validation;
+            try
+            {
+                var rule = await service.UpdateAsync(id, request.ToConfiguration(), ct);
+                return rule is null ? Results.NotFound() : Results.Ok(MonitoringRuleResponse.FromEntity(rule));
+            }
+            catch (Exception exception) when (IsValidationException(exception)) { return ValidationError(exception); }
+        })
+        .WithName("UpdateMonitoringRule").WithSummary("Modifier une règle de surveillance")
+        .WithDescription("Met à jour la configuration complète d'une règle existante, y compris ses horaires et extensions.")
+        .Produces<MonitoringRuleResponse>(StatusCodes.Status200OK).Produces(StatusCodes.Status404NotFound).ProducesValidationProblem();
+
+        // Change uniquement l'état actif/inactif.
+        group.MapPatch("/{id:guid}/enabled", async (Guid id, SetMonitoringRuleEnabledRequest request, MonitoringRuleService service, CancellationToken ct) =>
+        {
+            var updated = await service.SetEnabledAsync(id, request.IsEnabled, ct);
+            return updated ? Results.NoContent() : Results.NotFound();
+        })
+        .WithName("SetMonitoringRuleEnabled").WithSummary("Activer ou désactiver une règle")
+        .WithDescription("Modifie uniquement IsEnabled ; les autres paramètres de la règle restent inchangés.")
+        .Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status404NotFound);
+
+        // Supprime la règle ; EF Core supprime également ses horaires associés en cascade.
+        group.MapDelete("/{id:guid}", async (Guid id, MonitoringRuleService service, CancellationToken ct) =>
+        {
+            var deleted = await service.DeleteAsync(id, ct);
+            return deleted ? Results.NoContent() : Results.NotFound();
+        })
+        .WithName("DeleteMonitoringRule").WithSummary("Supprimer une règle")
+        .WithDescription("Supprime la règle identifiée et ses horaires associés. Retourne 404 si elle n'existe pas.")
+        .Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status404NotFound);
+
+        return endpoints;
+    }
+
+    /// <summary>Valide les annotations du contrat HTTP et retourne un problème HTTP 400 en cas d'erreur.</summary>
+    private static IResult? Validate(object request)
+    {
+        var results = new List<ValidationResult>();
+        return Validator.TryValidateObject(request, new ValidationContext(request), results, true)
+            ? null
+            : Results.ValidationProblem(results
+                .SelectMany(x => x.MemberNames.DefaultIfEmpty("request").Select(member => (member, message: x.ErrorMessage ?? "Valeur invalide.")))
+                .GroupBy(x => x.member)
+                .ToDictionary(group => group.Key, group => group.Select(x => x.message).ToArray()));
+    }
+
+    /// <summary>Détermine si l'exception correspond à une donnée fournie invalide.</summary>
+    private static bool IsValidationException(Exception exception) =>
+        exception is ArgumentException or InvalidTimeZoneException or TimeZoneNotFoundException or ValidationException;
+
+    /// <summary>Convertit une erreur métier en réponse HTTP 400 standardisée.</summary>
+    private static IResult ValidationError(Exception exception) =>
+        Results.ValidationProblem(new Dictionary<string, string[]> { ["request"] = [exception.Message] });
+}
