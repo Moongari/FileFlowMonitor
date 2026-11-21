@@ -23,6 +23,7 @@
 @if (_form.MatchingMode == 2)
 {
 <label>Expression régulière<input @bind="_form.FileNamePattern" placeholder="^Trade[12]_\d{8}_\d{5}\.csv$" /></label>
+<label>Nombre de fichiers attendus<input type="number" min="1" max="500" @bind="_form.ExpectedCount" /></label>
 }
 @if (_form.MatchingMode == 3)
 {
