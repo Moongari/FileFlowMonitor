@@ -1,5 +1,6 @@
 using FileFlowMonitor.Domain.Entities;
 using FileFlowMonitor.Domain.Enums;
+using System.Text.RegularExpressions;
 
 namespace FileFlowMonitor.Application.ExpectedFiles;
 
@@ -51,6 +52,26 @@ public sealed class ExpectedFilePlanner
         if (rule.MatchingMode == MatchingMode.ExactName)
             return string.Equals(expected.ExpectedFileName, fileName, StringComparison.OrdinalIgnoreCase);
 
+        if (rule.MatchingMode == MatchingMode.Pattern)
+        {
+            try
+            {
+                return !string.IsNullOrWhiteSpace(rule.FileNamePattern) &&
+                    Regex.IsMatch(fileName, rule.FileNamePattern,
+                        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+                        TimeSpan.FromMilliseconds(250));
+            }
+            catch (RegexMatchTimeoutException) { return false; }
+            catch (ArgumentException) { return false; }
+        }
+
+        if (rule.MatchingMode == MatchingMode.Quantity)
+        {
+            var extension = Path.GetExtension(fileName).TrimStart('.');
+            return rule.AllowedExtensions.Count == 0 ||
+                rule.AllowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+        }
+
         if (rule.MatchingMode != MatchingMode.FileNameTemplate ||
             string.IsNullOrWhiteSpace(rule.FileNamePattern))
             return false;
@@ -86,8 +107,14 @@ public sealed class ExpectedFilePlanner
                 .ToArray();
         }
 
-        // Pattern and quantity matching require occurrence-count semantics and are
-        // intentionally not expanded into fabricated individual file names.
+        if (rule.MatchingMode is MatchingMode.Pattern or MatchingMode.Quantity)
+        {
+            var prefix = rule.MatchingMode == MatchingMode.Pattern ? "Pattern match" : "Quantity file";
+            return Enumerable.Range(1, rule.ExpectedCount)
+                .Select(index => $"{prefix} {index:00}")
+                .ToArray();
+        }
+
         return [];
     }
 
