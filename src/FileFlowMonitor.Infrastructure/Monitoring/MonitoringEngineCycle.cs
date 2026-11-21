@@ -36,7 +36,17 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                     .ToListAsync(cancellationToken);
 
                 foreach (var item in expected)
+                {
                     item.RefreshStatus(now);
+                    if (item.Status == ExpectedFileStatus.Missing)
+                    {
+                        await RecordMissingFileIncidentAsync(rule, item, now, cancellationToken);
+                    }
+                    else if (item.Status is ExpectedFileStatus.Received or ExpectedFileStatus.Late)
+                    {
+                        await ResolveMissingFileIncidentAsync(item.Id, now, cancellationToken);
+                    }
+                }
 
                 execution.Complete(DateTimeOffset.UtcNow, discovered);
                 await ResolveIncidentAsync(rule.Id, "MONITORING_EXECUTION_FAILED", DateTimeOffset.UtcNow, cancellationToken);
@@ -62,8 +72,8 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
         var localDate = DateOnly.FromDateTime(
             TimeZoneInfo.ConvertTime(now, TimeZoneInfo.FindSystemTimeZoneById(rule.TimeZoneId)).DateTime);
 
-        // Load persisted occurrences once, then keep the in-memory key set updated
-        // while planning both dates. This also deduplicates within a single cycle.
+        // Generate the current business day and the next one on every cycle.
+        // The persisted unique occurrence key makes this operation idempotent.
         var existing = await db.ExpectedFiles
             .Where(x => x.MonitoringRuleId == rule.Id)
             .ToListAsync(cancellationToken);
@@ -79,7 +89,6 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                 var key = (item.ExpectedAtUtc.UtcDateTime.Ticks, item.ExpectedFileName.ToUpperInvariant());
                 if (existingByKey.TryGetValue(key, out var existingOccurrence))
                 {
-                    // Re-enabling a rule can reactivate the same future occurrence.
                     existingOccurrence.Reschedule();
                     continue;
                 }
@@ -103,8 +112,6 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
 
         await ResolveIncidentAsync(rule.Id, "FOLDER_UNAVAILABLE", now, cancellationToken);
         var discovered = 0;
-        // EnumerateFiles supports local paths and UNC shares. No files are moved,
-        // opened for writing, or modified by the monitoring engine.
         foreach (var path in Directory.EnumerateFiles(rule.FolderPath, "*", SearchOption.TopDirectoryOnly))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -135,8 +142,6 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                 now < existing.DetectedAtUtc.AddSeconds(rule.StabilityPeriodSeconds))
                 continue;
 
-            // Re-read metadata immediately before qualifying the file. A changed
-            // file will be observed as a new version on the next reconciliation.
             info.Refresh();
             var confirmedLastWrite = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero);
             if (!info.Exists || info.Length != existing.SizeBytes ||
@@ -178,6 +183,33 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
         }
 
         return discovered;
+    }
+
+    private async Task RecordMissingFileIncidentAsync(
+        MonitoringRule rule, ExpectedFile expected, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var alreadyOpen = await db.MonitoringIncidents.AnyAsync(x =>
+            x.ExpectedFileId == expected.Id &&
+            x.Code == "EXPECTED_FILE_MISSING" &&
+            x.ResolvedAtUtc == null, cancellationToken);
+
+        if (!alreadyOpen)
+        {
+            db.MonitoringIncidents.Add(new MonitoringIncident(
+                rule.Id, expected.Id, "EXPECTED_FILE_MISSING",
+                $"Fichier manquant pour le flux « {rule.Name} » : {expected.ExpectedFileName} (échéance {expected.DeadlineAtUtc:yyyy-MM-dd HH:mm} UTC).",
+                now));
+        }
+    }
+
+    private async Task ResolveMissingFileIncidentAsync(
+        Guid expectedFileId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var open = await db.MonitoringIncidents.FirstOrDefaultAsync(x =>
+            x.ExpectedFileId == expectedFileId &&
+            x.Code == "EXPECTED_FILE_MISSING" &&
+            x.ResolvedAtUtc == null, cancellationToken);
+        open?.Resolve(now);
     }
 
     private async Task RecordIncidentAsync(

@@ -40,7 +40,10 @@ public static class MonitoringReadEndpoints
                 lateToday = expected.Count(x => x.Status == ExpectedFileStatus.Late),
                 missingToday = expected.Count(x => x.Status == ExpectedFileStatus.Missing),
                 invalidToday = expected.Count(x => x.Status == ExpectedFileStatus.Invalid),
-                openIncidents = allIncidents.Count(x => x.ResolvedAtUtc == null),
+                openIncidents = allIncidents.Count(x => x.ResolvedAtUtc == null &&
+                    zones.TryGetValue(x.MonitoringRuleId, out var incidentZone) &&
+                    DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(x.OccurredAtUtc, incidentZone).DateTime) ==
+                    (date ?? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, incidentZone).DateTime))),
                 rules = rules.OrderBy(x => x.Name).Select(x => new
                 {
                     x.Id, x.Name, x.FolderPath, x.IsEnabled, x.GracePeriodMinutes,

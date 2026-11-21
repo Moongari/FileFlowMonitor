@@ -151,6 +151,51 @@ public sealed class MonitoringRuleApiTests
         Assert.Equal("midnight.csv", rows[0].GetProperty("expectedFileName").GetString());
     }
 
+
+    [Fact]
+    public async Task Overview_Returns_Daily_Summary_Per_Rule_And_Expected_File_Details()
+    {
+        await using var factory = new MonitoringRuleApiFactory();
+        using var client = factory.CreateClient();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<FileFlowDbContext>();
+        await db.Database.EnsureCreatedAsync();
+
+        var rule = new MonitoringRule("Citi daily", @"C:\\Inbound\\Citi", MatchingMode.ExactName);
+        rule.SetExpectedFileNames(["trade1_20261121_180000.csv", "trade2_20261121_180000.csv"]);
+        rule.ConfigureCalendar(WeekDays.EveryDay, "Europe/Paris");
+        rule.SetScheduleTimes([new TimeOnly(18, 0)]);
+        rule.SetEnabled(true);
+        db.MonitoringRules.Add(rule);
+
+        var expectedAt = new DateTimeOffset(2026, 11, 21, 17, 0, 0, TimeSpan.Zero);
+        var received = new ExpectedFile(rule.Id, "trade1_20261121_180000.csv", expectedAt, expectedAt.AddMinutes(15));
+        received.MarkReceived(Guid.NewGuid(), expectedAt.AddMinutes(2));
+        var missing = new ExpectedFile(rule.Id, "trade2_20261121_180000.csv", expectedAt, expectedAt.AddMinutes(15));
+        missing.RefreshStatus(expectedAt.AddMinutes(16));
+        db.ExpectedFiles.AddRange(received, missing);
+        await db.SaveChangesAsync();
+
+        var response = await client.GetAsync("/api/monitoring/overview?date=2026-11-21");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = json.RootElement;
+        Assert.Equal(2, root.GetProperty("expectedToday").GetInt32());
+        Assert.Equal(1, root.GetProperty("receivedToday").GetInt32());
+        Assert.Equal(1, root.GetProperty("missingToday").GetInt32());
+
+        var summary = Assert.Single(root.GetProperty("ruleSummaries").EnumerateArray());
+        Assert.Equal("Citi daily", summary.GetProperty("name").GetString());
+        Assert.Equal(1, summary.GetProperty("missing").GetInt32());
+        Assert.Equal("Attention", summary.GetProperty("healthStatus").GetString());
+
+        var rows = root.GetProperty("expectedFiles");
+        Assert.Equal(2, rows.GetArrayLength());
+        Assert.Contains(rows.EnumerateArray(), row =>
+            row.GetProperty("expectedFileName").GetString() == "trade2_20261121_180000.csv" &&
+            row.GetProperty("status").GetString() == "Missing");
+    }
+
     /// <summary>Remplace la connexion SQLite de l'application par une base en mémoire partagée.</summary>
     private sealed class MonitoringRuleApiFactory : WebApplicationFactory<Program>
     {

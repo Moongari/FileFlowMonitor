@@ -199,4 +199,53 @@ public sealed class MonitoringEngineTests
         }
     }
 
+
+    [Fact]
+    public async Task Missing_Expected_File_Creates_One_Linked_Open_Incident()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "FileFlowMonitor.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<FileFlowDbContext>().UseSqlite(connection).Options;
+
+        try
+        {
+            Guid ruleId;
+            Guid expectedId;
+            await using (var setup = new FileFlowDbContext(options))
+            {
+                await setup.Database.EnsureCreatedAsync();
+                var service = new MonitoringRuleService(new MonitoringRuleRepository(setup));
+                var rule = await service.CreateAsync(new MonitoringRuleConfiguration(
+                    "Missing file test", folder, MatchingMode.ExactName, null, 1,
+                    ["missing.csv"], ["csv"], [new TimeOnly(0, 0)], WeekDays.EveryDay,
+                    TimeZoneInfo.Utc.Id, 0, 0, true));
+                ruleId = rule.Id;
+                var expectedAt = DateTimeOffset.UtcNow.AddMinutes(-10);
+                var expected = new ExpectedFile(rule.Id, "missing.csv", expectedAt, expectedAt.AddMinutes(1));
+                expectedId = expected.Id;
+                setup.ExpectedFiles.Add(expected);
+                await setup.SaveChangesAsync();
+            }
+
+            await using (var cycleDb = new FileFlowDbContext(options))
+                await new MonitoringEngineCycle(cycleDb, new ExpectedFilePlanner()).ExecuteAsync();
+
+            await using (var verify = new FileFlowDbContext(options))
+            {
+                var expected = await verify.ExpectedFiles.SingleAsync(x => x.Id == expectedId);
+                Assert.Equal(ExpectedFileStatus.Missing, expected.Status);
+                var incident = await verify.MonitoringIncidents.SingleAsync(x =>
+                    x.ExpectedFileId == expectedId && x.Code == "EXPECTED_FILE_MISSING");
+                Assert.Equal(ruleId, incident.MonitoringRuleId);
+                Assert.Null(incident.ResolvedAtUtc);
+            }
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
 }
