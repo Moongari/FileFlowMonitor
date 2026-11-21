@@ -67,4 +67,16 @@ public sealed class ExpectedFileTests
         Assert.Equal(ExpectedFileStatus.Cancelled, file.Status);
     }
 
+    [Fact]
+    public void Reschedule_ReactivatesCancelledOccurrence()
+    {
+        var expectedAt = new DateTimeOffset(2026, 11, 22, 8, 0, 0, TimeSpan.Zero);
+        var file = new ExpectedFile(Guid.NewGuid(), "future.csv", expectedAt, expectedAt.AddMinutes(15));
+        file.Cancel();
+
+        file.Reschedule();
+
+        Assert.Equal(ExpectedFileStatus.Scheduled, file.Status);
+    }
+
 }
