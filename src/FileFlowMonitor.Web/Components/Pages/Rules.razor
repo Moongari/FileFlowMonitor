@@ -12,9 +12,14 @@
 <label>Nom de la règle<input @bind="_form.Name" placeholder="Ex. Citi - fichiers de trading" required /></label>
 <label>Chemin du dossier<input @bind="_form.FolderPath" placeholder="D:\FileFlow\Citi ou \\serveur\partage" required /></label>
 <label>Mode de reconnaissance<select @bind="_form.MatchingMode"><option value="0">Noms exacts</option><option value="1">Modèle de nommage</option><option value="2" disabled>Motif (prochaine évolution)</option><option value="3" disabled>Quantité (prochaine évolution)</option></select></label>
+@if (_form.MatchingMode == 0)
+{
 <label>Nom(s) attendu(s)<input @bind="_form.ExpectedFileNamesText" placeholder="trades.csv, positions.csv" /></label>
-<label>Modèle ou motif de nommage<input @bind="_form.FileNamePattern" placeholder="trades_{DATE}.csv ou trade*.csv" /></label>
-<label>Quantité attendue<input type="number" min="1" @bind="_form.ExpectedCount" /></label>
+}
+@if (_form.MatchingMode == 1)
+{
+<label>Modèle de nommage<input @bind="_form.FileNamePattern" placeholder="trades_{DATE}.csv" /></label>
+}
 <label>Extensions autorisées<input @bind="_form.AllowedExtensionsText" placeholder="csv, xlsx, pdf" /></label>
 <label>Horaires locaux<input @bind="_form.ScheduleTimesText" placeholder="08:00, 12:00, 16:00" /></label>
 <label>Jours de surveillance<select @bind="_form.Days"><option value="31">Lundi au vendredi</option><option value="127">Tous les jours</option><option value="96">Samedi et dimanche</option></select></label>
