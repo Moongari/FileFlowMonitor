@@ -84,7 +84,7 @@ public static class MonitoringReadEndpoints
         })
         .WithName("GetExpectedFiles")
         .WithSummary("Consulter les fichiers attendus")
-        .WithDescription("Liste les fichiers attendus pour une date. Filtres facultatifs : date (AAAA-MM-JJ), ruleId et status (Scheduled, Waiting, Missing, Received, Late, Invalid, Duplicate).")
+        .WithDescription("Liste les fichiers attendus pour une date. Filtres facultatifs : date (AAAA-MM-JJ), ruleId et status (Scheduled, Waiting, Missing, Received, Late, Invalid, Duplicate, Cancelled).")
         .Produces(StatusCodes.Status200OK);
 
         group.MapGet("/received-files", async (FileFlowDbContext db, int? limit, CancellationToken ct) =>
