@@ -179,13 +179,17 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                 .Where(x => (x.Status == ExpectedFileStatus.Scheduled ||
                              x.Status == ExpectedFileStatus.Waiting ||
                              x.Status == ExpectedFileStatus.Missing) &&
+                            x.ReceivedFileId == null &&
                             string.Equals(x.ExpectedFileName, info.Name, StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(x => x.ExpectedAtUtc <= existing.DetectedAtUtc)
                 .ThenByDescending(x => x.ExpectedAtUtc)
                 .FirstOrDefault();
 
             if (expectedFile is not null)
+            {
                 expectedFile.MarkReceived(existing.Id, existing.DetectedAtUtc);
+                await ResolveMissingFileIncidentAsync(expectedFile.Id, now, cancellationToken);
+            }
         }
 
         return discovered;
