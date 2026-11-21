@@ -24,11 +24,29 @@ public sealed class MonitoringRuleRepository(FileFlowDbContext dbContext) : IMon
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public Task UpdateAsync(MonitoringRule rule, CancellationToken cancellationToken = default)
+    public async Task UpdateAsync(MonitoringRule rule, CancellationToken cancellationToken = default)
     {
-        // GetByIdAsync returns a tracked aggregate. Preserve EF Core's change
-        // tracking so replaced ScheduleTime children are handled as deletes/adds.
-        return dbContext.SaveChangesAsync(cancellationToken);
+        // ScheduleTime rows are fully replaced by rule configuration. EF Core's
+        // relationship snapshot can otherwise keep a stale child in Modified
+        // state after collection replacement (especially when the same DbContext
+        // created and then reloaded the aggregate). Reconcile these rows explicitly.
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var trackedScheduleEntries = dbContext.ChangeTracker
+            .Entries<ScheduleTime>()
+            .Where(entry => entry.Entity.MonitoringRuleId == rule.Id)
+            .ToList();
+
+        foreach (var entry in trackedScheduleEntries)
+            entry.State = EntityState.Detached;
+
+        await dbContext.ScheduleTimes
+            .Where(schedule => schedule.MonitoringRuleId == rule.Id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        dbContext.ScheduleTimes.AddRange(rule.ScheduleTimes);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task CancelFutureExpectedFilesAsync(
