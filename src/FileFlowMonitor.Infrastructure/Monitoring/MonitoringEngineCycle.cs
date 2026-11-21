@@ -98,6 +98,7 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
             return 0;
         }
 
+        await ResolveIncidentAsync(rule.Id, "FOLDER_UNAVAILABLE", now, cancellationToken);
         var discovered = 0;
         // EnumerateFiles supports local paths and UNC shares. No files are moved,
         // opened for writing, or modified by the monitoring engine.
@@ -157,7 +158,7 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (expectedFile is not null)
-                expectedFile.MarkReceived(existing.Id, existing.LastWriteTimeUtc);
+                expectedFile.MarkReceived(existing.Id, existing.DetectedAtUtc);
         }
 
         return discovered;
@@ -173,5 +174,16 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
 
         if (open is null)
             db.MonitoringIncidents.Add(new MonitoringIncident(ruleId, null, code, message, now));
+    }
+
+    private async Task ResolveIncidentAsync(
+        Guid ruleId, string code, DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var open = await db.MonitoringIncidents.FirstOrDefaultAsync(x =>
+            x.MonitoringRuleId == ruleId && x.Code == code && x.ResolvedAtUtc == null,
+            cancellationToken);
+
+        open?.Resolve(now);
     }
 }
