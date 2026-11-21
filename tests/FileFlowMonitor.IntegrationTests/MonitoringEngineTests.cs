@@ -315,4 +315,53 @@ public sealed class MonitoringEngineTests
         }
     }
 
+    [Fact]
+    public async Task Cycle_Reconciles_Legacy_HHmm0_FileName_From_Template()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "FileFlowMonitor.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<FileFlowDbContext>().UseSqlite(connection).Options;
+
+        try
+        {
+            var now = DateTimeOffset.UtcNow;
+            var dateToken = now.ToString("yyyyMMdd");
+            var schedule = new TimeOnly(now.Hour, now.Minute);
+            var fileName = $"Trade1_{dateToken}_{schedule:HHmm}0.csv";
+            await File.WriteAllTextAsync(Path.Combine(folder, fileName), "tradeId,amount\n1,100");
+
+            Guid ruleId;
+            await using (var setup = new FileFlowDbContext(options))
+            {
+                await setup.Database.EnsureCreatedAsync();
+                var service = new MonitoringRuleService(new MonitoringRuleRepository(setup));
+                var rule = await service.CreateAsync(new MonitoringRuleConfiguration(
+                    "Citi template feed", folder, MatchingMode.FileNameTemplate,
+                    "Trade1_{DATE}_{TIME}.csv", 1, [], ["csv"], [schedule],
+                    WeekDays.EveryDay, TimeZoneInfo.Utc.Id, 15, 0, true));
+                ruleId = rule.Id;
+            }
+
+            await using (var cycle = new FileFlowDbContext(options))
+                await new MonitoringEngineCycle(cycle, new ExpectedFilePlanner()).ExecuteAsync();
+
+            await using (var verify = new FileFlowDbContext(options))
+            {
+                var expected = await verify.ExpectedFiles.SingleAsync(x =>
+                    x.MonitoringRuleId == ruleId && x.ExpectedAtUtc <= DateTimeOffset.UtcNow);
+                Assert.Equal(fileName.Replace($"{dateToken}_{schedule:HHmm}0", $"{dateToken}_{schedule:HHmmss}"),
+                    expected.ExpectedFileName);
+                Assert.Equal(ExpectedFileStatus.Received, expected.Status);
+                Assert.NotNull(expected.ReceivedFileId);
+                Assert.Single(await verify.ReceivedFiles.Where(x => x.MonitoringRuleId == ruleId).ToListAsync());
+            }
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
 }
