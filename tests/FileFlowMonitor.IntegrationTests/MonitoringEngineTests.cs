@@ -1,6 +1,7 @@
 using FileFlowMonitor.Application.ExpectedFiles;
 using FileFlowMonitor.Application.MonitoringRules;
 using FileFlowMonitor.Domain.Enums;
+using FileFlowMonitor.Domain.Entities;
 using FileFlowMonitor.Infrastructure.Monitoring;
 using FileFlowMonitor.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
@@ -65,8 +66,8 @@ public sealed class MonitoringEngineTests
                 var expectedFiles = (await verify.ExpectedFiles
                     .Where(x => x.MonitoringRuleId == ruleId)
                     .ToListAsync()).OrderBy(x => x.ExpectedAtUtc).ToList();
-                var expected = Assert.Single(expectedFiles.Where(x => x.ExpectedAtUtc <= DateTimeOffset.UtcNow));
-                var nextOccurrence = Assert.Single(expectedFiles.Where(x => x.ExpectedAtUtc > DateTimeOffset.UtcNow));
+                var expected = Assert.Single(expectedFiles, x => x.ExpectedAtUtc <= DateTimeOffset.UtcNow);
+                var nextOccurrence = Assert.Single(expectedFiles, x => x.ExpectedAtUtc > DateTimeOffset.UtcNow);
                 var received = await verify.ReceivedFiles.SingleAsync(x => x.MonitoringRuleId == ruleId);
                 Assert.Equal(2, expectedFiles.Count);
                 Assert.NotNull(received.StableAtUtc);
