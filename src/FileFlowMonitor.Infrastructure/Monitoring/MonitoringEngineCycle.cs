@@ -29,6 +29,9 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
             try
             {
                 await PlanExpectedFilesAsync(rule, now, cancellationToken);
+                // Persist newly planned occurrences before folder reconciliation,
+                // because matching queries are database-backed and must see them.
+                await db.SaveChangesAsync(cancellationToken);
                 var discovered = await ReconcileFolderAsync(rule, now, cancellationToken);
 
                 var expected = await db.ExpectedFiles
