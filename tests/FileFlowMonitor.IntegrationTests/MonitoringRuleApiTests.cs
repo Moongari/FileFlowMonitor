@@ -33,6 +33,10 @@ public sealed class MonitoringRuleApiTests
         var paths = swaggerDocument.RootElement.GetProperty("paths");
         Assert.True(paths.TryGetProperty("/api/monitoring/overview", out _));
         Assert.True(paths.TryGetProperty("/api/monitoring/expected-files", out _));
+        Assert.Contains("generatedAtUtc", paths.GetProperty("/api/monitoring/overview")
+            .GetProperty("get").GetProperty("description").GetString());
+        Assert.Contains("trades.csv", paths.GetProperty("/api/monitoring/expected-files")
+            .GetProperty("get").GetProperty("description").GetString());
         var createDescription = paths.GetProperty("/api/monitoring-rules").GetProperty("post")
             .GetProperty("description").GetString();
         Assert.Contains("Citi - fichiers de trading", createDescription);
