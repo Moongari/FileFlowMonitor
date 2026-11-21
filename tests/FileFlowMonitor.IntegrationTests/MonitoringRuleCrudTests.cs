@@ -25,7 +25,7 @@ public sealed class MonitoringRuleCrudTests
         Guid id;
         await using (var db = new FileFlowDbContext(options))
         {
-            var service = new MonitoringRuleService(new Persistence.MonitoringRuleRepository(db));
+            var service = new MonitoringRuleService(new MonitoringRuleRepository(db));
             var created = await service.CreateAsync(new MonitoringRuleConfiguration(
                 "Citi inbound",
                 @"D:\\FileFlow\\Citi",
@@ -53,7 +53,7 @@ public sealed class MonitoringRuleCrudTests
 
             Assert.NotNull(loaded);
             Assert.Equal("Citi inbound", loaded.Name);
-            Assert.Equal(["trades.csv", "positions.csv"], loaded.ExpectedFileNames);
+            Assert.Equal(new[] { "trades.csv", "positions.csv" }, loaded.ExpectedFileNames.OrderBy(x => x).ToArray());
             Assert.Equal(["csv", "pdf"], loaded.AllowedExtensions.OrderBy(x => x).ToArray());
             Assert.Equal(2, loaded.ScheduleTimes.Count);
 
