@@ -58,8 +58,8 @@ public sealed class ExpectedFilePlanner
                 .Replace("{DD}", date.ToString("dd"), StringComparison.OrdinalIgnoreCase)
                 .Replace("{TIME}", time.ToString("HHmmss"), StringComparison.OrdinalIgnoreCase)
                 .Replace("{HH}", time.ToString("HH"), StringComparison.OrdinalIgnoreCase)
-                .Replace("{mm}", time.ToString("mm"), StringComparison.OrdinalIgnoreCase)
-                .Replace("{SS}", time.ToString("ss"), StringComparison.OrdinalIgnoreCase))
+                .Replace("{MINUTES}", time.ToString("mm"), StringComparison.OrdinalIgnoreCase)
+                .Replace("{SECONDS}", time.ToString("ss"), StringComparison.OrdinalIgnoreCase))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
         }
