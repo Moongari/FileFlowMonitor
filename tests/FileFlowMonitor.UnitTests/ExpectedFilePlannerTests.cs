@@ -99,4 +99,32 @@ public sealed class ExpectedFilePlannerTests
         Assert.Equal("feed_20261121_090705.dat", result.ExpectedFileName);
     }
 
+    [Theory]
+    [InlineData("trade1_20261121_13000.csv")]
+    [InlineData("trade1_20261121_130000.csv")]
+    public void MatchesFileName_Accepts_HHmm0_And_HHmmss_Template_Tokens(string fileName)
+    {
+        var rule = new MonitoringRule("Citi hourly", @"D:\\Inbound", MatchingMode.FileNameTemplate);
+        rule.ConfigureMatching(MatchingMode.FileNameTemplate, "trade1_{DATE}_{TIME}.csv");
+        rule.ConfigureCalendar(WeekDays.EveryDay, "UTC");
+        rule.SetScheduleTimes([new TimeOnly(13, 0)]);
+
+        var expected = Assert.Single(new ExpectedFilePlanner().Plan(rule, new DateOnly(2026, 11, 21)));
+
+        Assert.True(new ExpectedFilePlanner().MatchesFileName(rule, expected, fileName));
+    }
+
+    [Fact]
+    public void MatchesFileName_ExactName_Remains_Strict()
+    {
+        var rule = new MonitoringRule("Exact feed", @"D:\\Inbound", MatchingMode.ExactName);
+        rule.SetExpectedFileNames(["Trade1_20261121_13000.csv"]);
+        rule.ConfigureCalendar(WeekDays.EveryDay, "UTC");
+        rule.SetScheduleTimes([new TimeOnly(13, 0)]);
+        var expected = Assert.Single(new ExpectedFilePlanner().Plan(rule, new DateOnly(2026, 11, 21)));
+
+        Assert.True(new ExpectedFilePlanner().MatchesFileName(rule, expected, "trade1_20261121_13000.csv"));
+        Assert.False(new ExpectedFilePlanner().MatchesFileName(rule, expected, "trade1_20261121_130000.csv"));
+    }
+
 }
