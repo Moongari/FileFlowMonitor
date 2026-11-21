@@ -21,7 +21,7 @@ flowchart TB
     D[Domain]
     AP[Application]
   end
-  DB[(Base de données)]
+  DB[(SQLite)]
   API[ASP.NET Core API]
   HUB[SignalR Hub]
   UI[Blazor Dashboard]
@@ -51,6 +51,17 @@ flowchart TB
 - **Api** : endpoints, configuration, hébergement du worker et hub SignalR.
 - **Web** : interface Blazor et tableau de bord.
 - **UnitTests / IntegrationTests** : règles métier, moteur, persistance et scénarios de bout en bout.
+
+## Cibles .NET et persistance SQLite
+
+La solution conserve une seule base de code et cible `net8.0` et `net10.0` via `TargetFrameworks` défini dans `Directory.Build.props`. Tous les projets héritent de ces cibles afin que les références entre projets restent cohérentes.
+
+- La cible .NET 8 utilise EF Core SQLite 8.x, Swashbuckle 6.x et ASP.NET Core MVC Testing 8.x.
+- La cible .NET 10 utilise EF Core SQLite 10.x, Swashbuckle 10.x et ASP.NET Core MVC Testing 10.x.
+- SQLite est le fournisseur de base de données dans les deux configurations ; aucun serveur SQL externe n'est requis.
+- Un SDK .NET 10 peut compiler les deux cibles. Un environnement équipé uniquement du SDK .NET 8 doit limiter la propriété `TargetFrameworks` à `net8.0` lors de la restauration, de la compilation et des tests.
+
+Cette sélection conditionnelle des packages évite de forcer des dépendances ASP.NET Core ou EF Core d'une génération sur l'autre.
 
 ## API REST et documentation
 
