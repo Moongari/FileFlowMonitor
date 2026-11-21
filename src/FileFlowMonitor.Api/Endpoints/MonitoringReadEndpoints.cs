@@ -14,13 +14,15 @@ public static class MonitoringReadEndpoints
         group.MapGet("/overview", async (FileFlowDbContext db, CancellationToken ct) =>
         {
             var now = DateTimeOffset.UtcNow;
-            var dayStart = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
             var rules = await db.MonitoringRules.AsNoTracking().Include(x => x.ScheduleTimes).ToListAsync(ct);
-            var dayEnd = dayStart.AddDays(1);
+            var zones = rules.ToDictionary(x => x.Id, x => TimeZoneInfo.FindSystemTimeZoneById(x.TimeZoneId));
             // SQLite stores DateTimeOffset as text by default and cannot range-filter/order it.
-            // Keep the existing database representation and apply chronological filters in memory.
+            // Keep the existing schema and evaluate each expected item on its rule's business date.
             var expected = (await db.ExpectedFiles.AsNoTracking().ToListAsync(ct))
-                .Where(x => x.ExpectedAtUtc >= dayStart && x.ExpectedAtUtc < dayEnd).ToList();
+                .Where(x => zones.TryGetValue(x.MonitoringRuleId, out var zone) &&
+                    DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(x.ExpectedAtUtc, zone).DateTime) ==
+                    DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, zone).DateTime))
+                .ToList();
             var allIncidents = await db.MonitoringIncidents.AsNoTracking().ToListAsync(ct);
             var incidents = allIncidents.Where(x => x.ResolvedAtUtc == null)
                 .OrderByDescending(x => x.OccurredAtUtc).Take(10).ToList();
@@ -63,10 +65,14 @@ public static class MonitoringReadEndpoints
             FileFlowDbContext db, DateOnly? date, Guid? ruleId, ExpectedFileStatus? status, CancellationToken ct) =>
         {
             var selectedDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
-            var start = new DateTimeOffset(selectedDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
-            var end = start.AddDays(1);
+            var rules = await db.MonitoringRules.AsNoTracking()
+                .Select(x => new { x.Id, x.TimeZoneId }).ToListAsync(ct);
+            var zones = rules.ToDictionary(x => x.Id, x => TimeZoneInfo.FindSystemTimeZoneById(x.TimeZoneId));
             var expected = await db.ExpectedFiles.AsNoTracking().ToListAsync(ct);
-            var filtered = expected.Where(x => x.ExpectedAtUtc >= start && x.ExpectedAtUtc < end);
+            var filtered = expected.Where(x =>
+                zones.TryGetValue(x.MonitoringRuleId, out var zone)
+                    ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(x.ExpectedAtUtc, zone).DateTime) == selectedDate
+                    : DateOnly.FromDateTime(x.ExpectedAtUtc.UtcDateTime) == selectedDate);
             if (ruleId.HasValue) filtered = filtered.Where(x => x.MonitoringRuleId == ruleId.Value);
             if (status.HasValue) filtered = filtered.Where(x => x.Status == status.Value);
             var rows = filtered.OrderBy(x => x.ExpectedAtUtc).Select(x => new
