@@ -24,35 +24,44 @@ public sealed class ExpectedFilePlanner
         };
         if ((rule.Days & day) == 0) return [];
 
-        var names = ResolveNames(rule, businessDate);
-        if (names.Count == 0) return [];
-
         var results = new List<ExpectedFile>();
         foreach (var schedule in rule.ScheduleTimes.OrderBy(x => x.ExpectedTime))
         {
             var local = businessDate.ToDateTime(schedule.ExpectedTime);
             var expectedAt = new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(local, zone), TimeSpan.Zero);
             var deadline = expectedAt.AddMinutes(rule.GracePeriodMinutes);
-            foreach (var name in names)
+
+            // Expand each configured template independently for every schedule.
+            // This creates a separate expected occurrence for each file and time slot.
+            foreach (var name in ResolveNames(rule, businessDate, schedule.ExpectedTime))
                 results.Add(new ExpectedFile(rule.Id, name, expectedAt, deadline));
         }
 
         return results;
     }
 
-    private static IReadOnlyList<string> ResolveNames(MonitoringRule rule, DateOnly date)
+    private static IReadOnlyList<string> ResolveNames(MonitoringRule rule, DateOnly date, TimeOnly time)
     {
         if (rule.MatchingMode == MatchingMode.ExactName)
             return rule.ExpectedFileNames.ToArray();
 
-        if (rule.MatchingMode == MatchingMode.FileNameTemplate && !string.IsNullOrWhiteSpace(rule.FileNamePattern))
+        if (rule.MatchingMode == MatchingMode.FileNameTemplate &&
+            !string.IsNullOrWhiteSpace(rule.FileNamePattern))
         {
-            var value = rule.FileNamePattern
+            var templates = rule.FileNamePattern
+                .Split(['\\r', '\\n', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            return templates.Select(template => template
                 .Replace("{DATE}", date.ToString("yyyyMMdd"), StringComparison.OrdinalIgnoreCase)
                 .Replace("{YYYY}", date.ToString("yyyy"), StringComparison.OrdinalIgnoreCase)
                 .Replace("{MM}", date.ToString("MM"), StringComparison.OrdinalIgnoreCase)
-                .Replace("{DD}", date.ToString("dd"), StringComparison.OrdinalIgnoreCase);
-            return [value];
+                .Replace("{DD}", date.ToString("dd"), StringComparison.OrdinalIgnoreCase)
+                .Replace("{TIME}", time.ToString("HHmmss"), StringComparison.OrdinalIgnoreCase)
+                .Replace("{HH}", time.ToString("HH"), StringComparison.OrdinalIgnoreCase)
+                .Replace("{mm}", time.ToString("mm"), StringComparison.OrdinalIgnoreCase)
+                .Replace("{SS}", time.ToString("ss"), StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
         }
 
         // Pattern and quantity rules cannot determine individual missing file names.
