@@ -84,11 +84,8 @@ else {
  private void GenerateScheduleTimes()
  {
    _scheduleGeneratorMessage=null;
-   var start=TimeOnly.FromDateTime(_form.ScheduleStartTime);\n   var end=TimeOnly.FromDateTime(_form.ScheduleEndTime);
-   {
-     _scheduleGeneratorMessage="Veuillez renseigner une heure de début et une heure de fin valides.";
-     return;
-   }
+   var start=TimeOnly.FromDateTime(_form.ScheduleStartTime);
+   var end=TimeOnly.FromDateTime(_form.ScheduleEndTime);
    if(_form.ScheduleIntervalMinutes<1 || _form.ScheduleIntervalMinutes>1440)
    {
      _scheduleGeneratorMessage="L'intervalle doit être compris entre 1 et 1 440 minutes.";
