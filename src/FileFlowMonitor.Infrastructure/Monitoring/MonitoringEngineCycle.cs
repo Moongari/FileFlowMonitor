@@ -68,21 +68,21 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
             var planned = planner.Plan(rule, date);
             if (planned.Count == 0) continue;
 
-            var start = planned.Min(x => x.ExpectedAtUtc);
-            var end = planned.Max(x => x.ExpectedAtUtc);
+            // Compare stable occurrence keys in memory. This prevents repeated cycles
+            // from enqueueing the same occurrence twice.
             var existing = await db.ExpectedFiles
-                .Where(x => x.MonitoringRuleId == rule.Id &&
-                            x.ExpectedAtUtc >= start && x.ExpectedAtUtc <= end)
+                .Where(x => x.MonitoringRuleId == rule.Id)
                 .Select(x => new { x.ExpectedAtUtc, x.ExpectedFileName })
                 .ToListAsync(cancellationToken);
+            var existingKeys = existing
+                .Select(x => (x.ExpectedAtUtc.UtcTicks, x.ExpectedFileName.ToUpperInvariant()))
+                .ToHashSet();
 
             foreach (var item in planned)
             {
-                if (existing.Any(x => x.ExpectedAtUtc == item.ExpectedAtUtc &&
-                    x.ExpectedFileName == item.ExpectedFileName))
-                    continue;
-
-                db.ExpectedFiles.Add(item);
+                var key = (item.ExpectedAtUtc.UtcTicks, item.ExpectedFileName.ToUpperInvariant());
+                if (existingKeys.Add(key))
+                    db.ExpectedFiles.Add(item);
             }
         }
     }
