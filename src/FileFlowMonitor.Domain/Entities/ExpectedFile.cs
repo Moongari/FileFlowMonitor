@@ -49,4 +49,10 @@ public sealed class ExpectedFile
     public void MarkInvalid() => Status = ExpectedFileStatus.Invalid;
 
     public void Cancel() => Status = ExpectedFileStatus.Cancelled;
+
+    public void Reschedule()
+    {
+        if (Status == ExpectedFileStatus.Cancelled)
+            Status = ExpectedFileStatus.Scheduled;
+    }
 }
