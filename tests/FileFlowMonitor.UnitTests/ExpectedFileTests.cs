@@ -55,4 +55,16 @@ public sealed class ExpectedFileTests
         Assert.Equal(ExpectedFileStatus.Received, file.Status);
     }
 
+    [Fact]
+    public void CancelledOccurrence_RemainsCancelledAfterRefresh()
+    {
+        var expectedAt = new DateTimeOffset(2026, 11, 22, 8, 0, 0, TimeSpan.Zero);
+        var file = new ExpectedFile(Guid.NewGuid(), "future.csv", expectedAt, expectedAt.AddMinutes(15));
+
+        file.Cancel();
+        file.RefreshStatus(expectedAt.AddDays(1));
+
+        Assert.Equal(ExpectedFileStatus.Cancelled, file.Status);
+    }
+
 }
