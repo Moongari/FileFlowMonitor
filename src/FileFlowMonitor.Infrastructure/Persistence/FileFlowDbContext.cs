@@ -22,17 +22,35 @@ public sealed class FileFlowDbContext(DbContextOptions<FileFlowDbContext> option
             entity.Property(x => x.TimeZoneId).HasMaxLength(100).IsRequired();
             entity.Ignore(x => x.ExpectedFileNames);
             entity.Ignore(x => x.AllowedExtensions);
-            entity.Property<string>("_expectedFileNamesJson").HasColumnName("ExpectedFileNamesJson").IsRequired();
-            entity.Property<string>("_allowedExtensionsJson").HasColumnName("AllowedExtensionsJson").IsRequired();
-            entity.HasMany(x => x.ScheduleTimes).WithOne().HasForeignKey(x => x.MonitoringRuleId).OnDelete(DeleteBehavior.Cascade);
+            entity.Property<string>("_expectedFileNamesJson")
+                .HasField("_expectedFileNamesJson")
+                .UsePropertyAccessMode(PropertyAccessMode.Field)
+                .HasColumnName("ExpectedFileNamesJson")
+                .IsRequired();
+            entity.Property<string>("_allowedExtensionsJson")
+                .HasField("_allowedExtensionsJson")
+                .UsePropertyAccessMode(PropertyAccessMode.Field)
+                .HasColumnName("AllowedExtensionsJson")
+                .IsRequired();
+            entity.HasMany(x => x.ScheduleTimes)
+                .WithOne()
+                .HasForeignKey(x => x.MonitoringRuleId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
-        modelBuilder.Entity<ScheduleTime>().HasKey(x => x.Id);
+
+        modelBuilder.Entity<ScheduleTime>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.MonitoringRuleId, x.ExpectedTime }).IsUnique();
+        });
+
         modelBuilder.Entity<ExpectedFile>(entity =>
         {
             entity.HasKey(x => x.Id);
             entity.Property(x => x.ExpectedFileName).HasMaxLength(512).IsRequired();
             entity.HasIndex(x => new { x.MonitoringRuleId, x.ExpectedAtUtc, x.ExpectedFileName }).IsUnique();
         });
+
         modelBuilder.Entity<ReceivedFile>(entity =>
         {
             entity.HasKey(x => x.Id);
@@ -40,12 +58,14 @@ public sealed class FileFlowDbContext(DbContextOptions<FileFlowDbContext> option
             entity.Property(x => x.FileName).HasMaxLength(512).IsRequired();
             entity.HasIndex(x => new { x.MonitoringRuleId, x.FullPath, x.LastWriteTimeUtc });
         });
+
         modelBuilder.Entity<MonitoringIncident>(entity =>
         {
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Code).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Message).HasMaxLength(2000).IsRequired();
         });
+
         modelBuilder.Entity<MonitoringExecution>().HasKey(x => x.Id);
     }
 }
