@@ -11,7 +11,7 @@
 <div class="form-grid">
 <label>Nom de la règle<input @bind="_form.Name" placeholder="Ex. Citi - fichiers de trading" required /></label>
 <label>Chemin du dossier<input @bind="_form.FolderPath" placeholder="D:\FileFlow\Citi ou \\serveur\partage" required /></label>
-<label>Mode de reconnaissance<select @bind="_form.MatchingMode"><option value="0">Noms exacts</option><option value="1">Modèle de nommage</option><option value="2" disabled>Motif (prochaine évolution)</option><option value="3" disabled>Quantité (prochaine évolution)</option></select></label>
+<label>Mode de reconnaissance<select @bind="_form.MatchingMode"><option value="0">Noms exacts</option><option value="1">Modèle de nommage</option><option value="2">Motif (expression régulière)</option><option value="3">Quantité de fichiers</option></select></label>
 @if (_form.MatchingMode == 0)
 {
 <label>Nom(s) attendu(s)<input @bind="_form.ExpectedFileNamesText" placeholder="trades.csv, positions.csv" /></label>
@@ -19,6 +19,14 @@
 @if (_form.MatchingMode == 1)
 {
 <label>Modèle de nommage<input @bind="_form.FileNamePattern" placeholder="trade1_{DATE}_{TIME}.csv; trade2_{DATE}_{TIME}.csv" /></label>
+}
+@if (_form.MatchingMode == 2)
+{
+<label>Expression régulière<input @bind="_form.FileNamePattern" placeholder="^Trade[12]_\\d{8}_\\d{5}\\.csv$" /></label>
+}
+@if (_form.MatchingMode == 3)
+{
+<label>Nombre de fichiers attendus<input type="number" min="1" max="500" @bind="_form.ExpectedCount" /></label>
 }
 <label>Extensions autorisées<input @bind="_form.AllowedExtensionsText" placeholder="csv, xlsx, pdf" /></label>
 <label class="schedule-manual">Horaires locaux<input @bind="_form.ScheduleTimesText" placeholder="08:00, 12:00, 16:00" /><small class="sub-cell">Vous pouvez conserver une liste manuelle ou utiliser le générateur ci-dessous.</small></label>
@@ -40,7 +48,12 @@
 <label>Délai de grâce (minutes)<input type="number" min="0" max="1440" @bind="_form.GracePeriodMinutes" /></label>
 <label>Stabilité fichier (secondes)<input type="number" min="0" max="3600" @bind="_form.StabilityPeriodSeconds" /></label>
 </div>
-<div class="form-help">Le modèle accepte plusieurs noms séparés par des points-virgules : un modèle par fichier attendu. Variables : {DATE} (yyyyMMdd), {YYYY}, {MM}, {DD}, {TIME} (HHmmss), {HH}, {MINUTES}, {SECONDS}. Chaque modèle est décliné pour chaque horaire : par exemple deux modèles et 16 horaires créent 32 attentes indépendantes. Les modes Motif et Quantité ne déterminent pas encore les noms manquants individuellement.</div>
+<div class="form-help">
+@if (_form.MatchingMode == 0) { <span>Chaque nom exact est attendu à chaque horaire.</span> }
+@if (_form.MatchingMode == 1) { <span>Un modèle par fichier, séparés par des points-virgules. Variables : {DATE} (yyyyMMdd), {YYYY}, {MM}, {DD}, {TIME} (HHmmss ou HHmm0), {HH}, {MINUTES}, {SECONDS}. Chaque modèle est décliné à chaque horaire.</span> }
+@if (_form.MatchingMode == 2) { <span>L'expression régulière est appliquée au nom du fichier, sans tenir compte de la casse. Le nombre d'occurrences attendues est défini par « Nombre de fichiers attendus ».</span> }
+@if (_form.MatchingMode == 3) { <span>Le moteur compte le nombre de fichiers reçus à chaque horaire. Les extensions autorisées servent de filtre ; sans extension, tous les fichiers sont comptés.</span> }
+</div>
 <div class="form-actions"><button type="button" class="button-secondary" @onclick="Cancel">Annuler</button><button type="submit" class="button-primary" disabled="@_saving">@(_saving ? "Enregistrement…" : (_editingId.HasValue ? "Enregistrer les modifications" : "Créer la règle"))</button></div>
 </EditForm></section>
 }
