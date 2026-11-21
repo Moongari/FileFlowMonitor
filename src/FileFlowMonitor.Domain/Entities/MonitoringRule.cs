@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using FileFlowMonitor.Domain.Enums;
 
 namespace FileFlowMonitor.Domain.Entities;
@@ -56,6 +57,11 @@ public sealed class MonitoringRule
         if (expectedCount < 1) throw new ArgumentOutOfRangeException(nameof(expectedCount));
         if ((mode is MatchingMode.FileNameTemplate or MatchingMode.Pattern) && string.IsNullOrWhiteSpace(pattern))
             throw new ArgumentException("A file name template or pattern is required.", nameof(pattern));
+        if (mode == MatchingMode.Pattern)
+        {
+            try { _ = new Regex(pattern!, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250)); }
+            catch (ArgumentException exception) { throw new ArgumentException($"Invalid regular expression: {exception.Message}", nameof(pattern), exception); }
+        }
         MatchingMode = mode;
         FileNamePattern = pattern?.Trim();
         ExpectedCount = expectedCount;
