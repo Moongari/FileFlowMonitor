@@ -113,6 +113,8 @@ public static class MonitoringReadEndpoints
             Le paramètre date (AAAA-MM-JJ) est facultatif. Sans date, chaque règle utilise sa date locale courante.
             Les règles restent permanentes ; les occurrences journalières sont générées par le moteur et conservées pour l'historique.
             Exemple : GET /api/monitoring/overview?date=2026-11-21.
+            Exemple de réponse : generatedAtUtc, expectedToday, receivedToday, missingToday, ruleSummaries et expectedFiles.
+            Un fichier manquant est retourné avec status=Missing et son nom exact, par exemple trades.csv.
             """)
         .Produces(StatusCodes.Status200OK);
 

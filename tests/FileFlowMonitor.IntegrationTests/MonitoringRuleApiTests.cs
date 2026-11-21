@@ -161,7 +161,9 @@ public sealed class MonitoringRuleApiTests
         var db = scope.ServiceProvider.GetRequiredService<FileFlowDbContext>();
         await db.Database.EnsureCreatedAsync();
 
-        var rule = new MonitoringRule("Citi daily", @"C:\\Inbound\\Citi", MatchingMode.ExactName);
+        var folder = Path.Combine(Path.GetTempPath(), "FileFlowMonitor.ApiTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var rule = new MonitoringRule("Citi daily", folder, MatchingMode.ExactName);
         rule.SetExpectedFileNames(["trade1_20261121_180000.csv", "trade2_20261121_180000.csv"]);
         rule.ConfigureCalendar(WeekDays.EveryDay, "Europe/Paris");
         rule.SetScheduleTimes([new TimeOnly(18, 0)]);
@@ -194,6 +196,7 @@ public sealed class MonitoringRuleApiTests
         Assert.Contains(rows.EnumerateArray(), row =>
             row.GetProperty("expectedFileName").GetString() == "trade2_20261121_180000.csv" &&
             row.GetProperty("status").GetString() == "Missing");
+        Directory.Delete(folder, recursive: true);
     }
 
     /// <summary>Remplace la connexion SQLite de l'application par une base en mémoire partagée.</summary>
