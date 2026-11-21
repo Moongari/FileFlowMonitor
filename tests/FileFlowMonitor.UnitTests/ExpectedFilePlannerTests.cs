@@ -127,4 +127,47 @@ public sealed class ExpectedFilePlannerTests
         Assert.False(new ExpectedFilePlanner().MatchesFileName(rule, expected, "trade1_20261121_130000.csv"));
     }
 
+    [Fact]
+    public void Plan_Pattern_Creates_Expected_Count_And_Matches_Regex()
+    {
+        var rule = new MonitoringRule("Pattern feed", @"D:\\Inbound", MatchingMode.Pattern);
+        rule.ConfigureMatching(MatchingMode.Pattern, @"^Trade[12]_\\d{8}_\\d{5}\\.csv$", 2);
+        rule.SetAllowedExtensions(["csv"]);
+        rule.ConfigureCalendar(WeekDays.EveryDay, "UTC");
+        rule.SetScheduleTimes([new TimeOnly(13, 0)]);
+
+        var expected = new ExpectedFilePlanner().Plan(rule, new DateOnly(2026, 11, 21));
+
+        Assert.Equal(2, expected.Count);
+        Assert.True(new ExpectedFilePlanner().MatchesFileName(rule, expected[0], "Trade1_20261121_13000.csv"));
+        Assert.True(new ExpectedFilePlanner().MatchesFileName(rule, expected[1], "Trade2_20261121_13000.csv"));
+        Assert.False(new ExpectedFilePlanner().MatchesFileName(rule, expected[0], "Trade1_20261121_13000.txt"));
+    }
+
+    [Fact]
+    public void Plan_Quantity_Creates_Expected_Count_And_Filters_Extensions()
+    {
+        var rule = new MonitoringRule("Quantity feed", @"D:\\Inbound", MatchingMode.Quantity);
+        rule.ConfigureMatching(MatchingMode.Quantity, expectedCount: 3);
+        rule.SetAllowedExtensions(["csv", "xlsx"]);
+        rule.ConfigureCalendar(WeekDays.EveryDay, "UTC");
+        rule.SetScheduleTimes([new TimeOnly(13, 0)]);
+
+        var expected = new ExpectedFilePlanner().Plan(rule, new DateOnly(2026, 11, 21));
+
+        Assert.Equal(3, expected.Count);
+        Assert.True(new ExpectedFilePlanner().MatchesFileName(rule, expected[0], "arbitrary-name.csv"));
+        Assert.True(new ExpectedFilePlanner().MatchesFileName(rule, expected[1], "another.xlsx"));
+        Assert.False(new ExpectedFilePlanner().MatchesFileName(rule, expected[2], "ignored.pdf"));
+    }
+
+    [Fact]
+    public void ConfigureMatching_Rejects_Invalid_Regex()
+    {
+        var rule = new MonitoringRule("Invalid pattern", @"D:\\Inbound", MatchingMode.Pattern);
+
+        Assert.Throws<ArgumentException>(() =>
+            rule.ConfigureMatching(MatchingMode.Pattern, "[invalid"));
+    }
+
 }
