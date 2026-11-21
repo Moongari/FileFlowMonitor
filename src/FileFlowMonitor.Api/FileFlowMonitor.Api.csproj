@@ -5,6 +5,8 @@
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Pin the OpenAPI.NET 2.x line to a security-fixed release (GHSA-v5pm-xwqc-g5wc). -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
     <ProjectReference Include="../FileFlowMonitor.Application/FileFlowMonitor.Application.csproj" />
     <ProjectReference Include="../FileFlowMonitor.Infrastructure/FileFlowMonitor.Infrastructure.csproj" />
   </ItemGroup>
