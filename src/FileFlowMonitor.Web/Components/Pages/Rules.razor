@@ -6,8 +6,8 @@
 @if (!string.IsNullOrEmpty(_error)) { <div class="alert alert-error">@_error</div> }
 @if (_showForm)
 {
-<section class="panel form-panel"><div class="panel-heading"><div><h2>Nouvelle règle</h2><p>Configurez les attentes de réception.</p></div><button class="icon-button" @onclick="Cancel">✕</button></div>
-<EditForm Model="_form" OnValidSubmit="CreateAsync">
+<section class="panel form-panel"><div class="panel-heading"><div><h2>@(_editingId.HasValue ? "Modifier la règle" : "Nouvelle règle")</h2><p>Configurez les attentes de réception.</p></div><button class="icon-button" @onclick="Cancel">✕</button></div>
+<EditForm Model="_form" OnValidSubmit="SaveAsync">
 <div class="form-grid">
 <label>Nom de la règle<input @bind="_form.Name" placeholder="Ex. Citi - fichiers de trading" required /></label>
 <label>Chemin du dossier<input @bind="_form.FolderPath" placeholder="D:\FileFlow\Citi ou \\serveur\partage" required /></label>
@@ -23,7 +23,7 @@
 <label>Stabilité fichier (secondes)<input type="number" min="0" max="3600" @bind="_form.StabilityPeriodSeconds" /></label>
 </div>
 <div class="form-help">Pour le mode « Noms exacts », indiquez tous les noms attendus séparés par des virgules. Les horaires utilisent le fuseau choisi.</div>
-<div class="form-actions"><button type="button" class="button-secondary" @onclick="Cancel">Annuler</button><button type="submit" class="button-primary" disabled="@_saving">@(_saving ? "Enregistrement…" : "Créer la règle")</button></div>
+<div class="form-actions"><button type="button" class="button-secondary" @onclick="Cancel">Annuler</button><button type="submit" class="button-primary" disabled="@_saving">@(_saving ? "Enregistrement…" : (_editingId.HasValue ? "Enregistrer les modifications" : "Créer la règle"))</button></div>
 </EditForm></section>
 }
 <section class="panel">
@@ -33,21 +33,37 @@ else if (_rules.Count == 0) { <div class="empty-state"><div class="empty-icon">�
 else {
 <div class="table-wrap"><table><thead><tr><th>Nom</th><th>Dossier</th><th>Reconnaissance</th><th>Horaires</th><th>Grace</th><th>État</th><th>Actions</th></tr></thead><tbody>
 @foreach (var rule in _rules)
-{ <tr><td><strong>@rule.Name</strong><small class="sub-cell">@rule.TimeZoneId</small></td><td class="path-cell">@rule.FolderPath</td><td>@MatchingLabel(rule.MatchingMode)</td><td>@string.Join(" · ", rule.ScheduleTimes.Select(x => x[..5]))</td><td>@rule.GracePeriodMinutes min</td><td><span class="pill @(rule.IsEnabled ? "pill-green" : "pill-muted")">@(rule.IsEnabled ? "Active" : "Désactivée")</span></td><td class="actions"><button class="button-link" @onclick="() => ToggleAsync(rule)">@((rule.IsEnabled) ? "Suspendre" : "Activer")</button><button class="button-link danger-link" @onclick="() => DeleteAsync(rule)">Supprimer</button></td></tr> }
+{ <tr><td><strong>@rule.Name</strong><small class="sub-cell">@rule.TimeZoneId</small></td><td class="path-cell">@rule.FolderPath</td><td>@MatchingLabel(rule.MatchingMode)</td><td>@string.Join(" · ", rule.ScheduleTimes.Select(x => x[..5]))</td><td>@rule.GracePeriodMinutes min</td><td><span class="pill @(rule.IsEnabled ? "pill-green" : "pill-muted")">@(rule.IsEnabled ? "Active" : "Désactivée")</span></td><td class="actions"><button class="button-link" @onclick="() => ShowEdit(rule)">Modifier</button><button class="button-link" @onclick="() => ToggleAsync(rule)">@((rule.IsEnabled) ? "Suspendre" : "Activer")</button><button class="button-link danger-link" @onclick="() => AskDelete(rule)">Supprimer</button></td></tr> }
 </tbody></table></div>
 }
 </section>
+@if (_pendingDelete is not null)
+{
+<div class="modal-backdrop"><section class="confirm-modal"><div class="eyebrow">CONFIRMATION</div><h2>Supprimer cette règle ?</h2><p>La règle « @_pendingDelete.Name » sera supprimée. Cette action est définitive.</p><div class="form-actions"><button class="button-secondary" @onclick="CancelDelete">Annuler</button><button class="button-primary danger-button" @onclick="ConfirmDeleteAsync">Confirmer la suppression</button></div></section></div>
+}
 @code {
  private List<RuleView> _rules = [];
  private RuleForm _form = new();
  private bool _loading = true, _showForm, _saving;
+ private Guid? _editingId;
+ private RuleView? _pendingDelete;
  private string? _error, _message;
  protected override async Task OnInitializedAsync() => await LoadAsync();
  private HttpClient Api => ClientFactory.CreateClient("FileFlowApi");
  private async Task LoadAsync() { _loading=true; _error=null; try { _rules=await Api.GetFromJsonAsync<List<RuleView>>("api/monitoring-rules") ?? []; } catch(Exception ex){_error="Impossible de charger les règles : "+ex.Message;} finally{_loading=false;} }
- private void ShowCreate(){_form=new RuleForm();_showForm=true;_message=null;}
- private void Cancel()=>_showForm=false;
- private async Task CreateAsync()
+ private void ShowCreate(){_form=new RuleForm();_editingId=null;_showForm=true;_message=null;}
+ private void ShowEdit(RuleView rule){
+   _editingId=rule.Id;_showForm=true;_message=null;
+   _form=new RuleForm { Name=rule.Name, FolderPath=rule.FolderPath, MatchingMode=rule.MatchingMode,
+     FileNamePattern=rule.FileNamePattern??\"\", ExpectedCount=rule.ExpectedCount,
+     ExpectedFileNamesText=string.Join(\", \",rule.ExpectedFileNames),
+     AllowedExtensionsText=string.Join(\", \",rule.AllowedExtensions),
+     ScheduleTimesText=string.Join(\", \",rule.ScheduleTimes.Select(x=>x[..5])),
+     Days=rule.Days,TimeZoneId=rule.TimeZoneId,GracePeriodMinutes=rule.GracePeriodMinutes,
+     StabilityPeriodSeconds=rule.StabilityPeriodSeconds };
+ }
+ private void Cancel(){_showForm=false;_editingId=null;}
+ private async Task SaveAsync()
  {
    _saving=true;_error=null;
    try {
@@ -58,9 +74,12 @@ else {
        scheduleTimes=_form.ScheduleTimesText.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).Select(x=>TimeOnly.Parse(x).ToString("HH:mm:ss")),
        days=_form.Days,timeZoneId=_form.TimeZoneId,gracePeriodMinutes=_form.GracePeriodMinutes,
        stabilityPeriodSeconds=_form.StabilityPeriodSeconds,isEnabled=true };
-     var response=await Api.PostAsJsonAsync("api/monitoring-rules",payload);
-     if(!response.IsSuccessStatusCode){_error="La création a échoué : "+await response.Content.ReadAsStringAsync();return;}
-     _showForm=false;_message="La règle a été créée. Le moteur la prendra en compte au prochain cycle.";await LoadAsync();
+     var response=_editingId.HasValue
+       ? await Api.PutAsJsonAsync($"api/monitoring-rules/{_editingId.Value}",payload)
+       : await Api.PostAsJsonAsync("api/monitoring-rules",payload);
+     if(!response.IsSuccessStatusCode){_error="L'enregistrement a échoué : "+await response.Content.ReadAsStringAsync();return;}
+     _showForm=false;_message=_editingId.HasValue?"La règle a été mise à jour.":"La règle a été créée. Le moteur la prendra en compte au prochain cycle.";
+     _editingId=null;await LoadAsync();
    } catch(Exception ex){_error="Vérifiez les noms de fichiers, les horaires et le fuseau horaire : "+ex.Message;}
    finally{_saving=false;}
  }
@@ -69,12 +88,17 @@ else {
    var response=await Api.PatchAsJsonAsync($"api/monitoring-rules/{rule.Id}/enabled",new {isEnabled=!rule.IsEnabled});
    if(response.IsSuccessStatusCode){_message=$"Règle « {rule.Name} » mise à jour.";await LoadAsync();}else{_error="Impossible de modifier cette règle.";}
  }
- private async Task DeleteAsync(RuleView rule)
+ private void AskDelete(RuleView rule)=>_pendingDelete=rule;
+ private void CancelDelete()=>_pendingDelete=null;
+ private async Task ConfirmDeleteAsync()
  {
+   if(_pendingDelete is null)return;
+   var rule=_pendingDelete;
    var response=await Api.DeleteAsync($"api/monitoring-rules/{rule.Id}");
+   _pendingDelete=null;
    if(response.IsSuccessStatusCode){_message=$"Règle « {rule.Name} » supprimée.";await LoadAsync();}else{_error="Impossible de supprimer cette règle.";}
  }
  private static string MatchingLabel(int mode)=>mode switch{0=>"Noms exacts",1=>"Modèle",2=>"Motif",3=>"Quantité",_=>"Inconnu"};
  private sealed class RuleForm { public string Name{get;set;}=""; public string FolderPath{get;set;}=""; public int MatchingMode{get;set;} public string ExpectedFileNamesText{get;set;}=""; public string FileNamePattern{get;set;}=""; public int ExpectedCount{get;set;}=1; public string AllowedExtensionsText{get;set;}="csv"; public string ScheduleTimesText{get;set;}="08:00, 12:00"; public int Days{get;set;}=31; public string TimeZoneId{get;set;}="Europe/Paris"; public int GracePeriodMinutes{get;set;}=15; public int StabilityPeriodSeconds{get;set;}=5; }
- private sealed class RuleView { public Guid Id{get;set;} public string Name{get;set;}=""; public string FolderPath{get;set;}=""; public int MatchingMode{get;set;} public int GracePeriodMinutes{get;set;} public string TimeZoneId{get;set;}=""; public bool IsEnabled{get;set;} public List<string> ScheduleTimes{get;set;}=[]; }
+ private sealed class RuleView { public Guid Id{get;set;} public string Name{get;set;}=""; public string FolderPath{get;set;}=""; public int MatchingMode{get;set;} public int GracePeriodMinutes{get;set;} public int Days{get;set;} public int ExpectedCount{get;set;} public string? FileNamePattern{get;set;} public List<string> ExpectedFileNames{get;set;}=[]; public List<string> AllowedExtensions{get;set;}=[]; public string TimeZoneId{get;set;}=""; public bool IsEnabled{get;set;} public List<string> ScheduleTimes{get;set;}=[]; }
 }
