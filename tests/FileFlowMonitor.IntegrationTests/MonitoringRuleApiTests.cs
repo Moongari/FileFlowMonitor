@@ -27,6 +27,14 @@ public sealed class MonitoringRuleApiTests
 
         var swagger = await client.GetAsync("/swagger/v1/swagger.json");
         Assert.Equal(HttpStatusCode.OK, swagger.StatusCode);
+        var swaggerDocument = JsonDocument.Parse(await swagger.Content.ReadAsStringAsync());
+        var paths = swaggerDocument.RootElement.GetProperty("paths");
+        Assert.True(paths.TryGetProperty("/api/monitoring/overview", out _));
+        Assert.True(paths.TryGetProperty("/api/monitoring/expected-files", out _));
+        var createDescription = paths.GetProperty("/api/monitoring-rules").GetProperty("post")
+            .GetProperty("description").GetString();
+        Assert.Contains("Citi - fichiers de trading", createDescription);
+        Assert.Contains("expectedFileNames", createDescription);
 
         var payload = new
         {
@@ -78,6 +86,34 @@ public sealed class MonitoringRuleApiTests
 
         var missing = await client.GetAsync($"/api/monitoring-rules/{id}");
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+    }
+
+    [Fact]
+    public async Task Monitoring_Read_Endpoints_Return_Usable_Empty_Collections()
+    {
+        await using var factory = new MonitoringRuleApiFactory();
+        using var client = factory.CreateClient();
+        using (var scope = factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<FileFlowDbContext>().Database.EnsureCreatedAsync();
+
+        var overview = await client.GetAsync("/api/monitoring/overview");
+        Assert.Equal(HttpStatusCode.OK, overview.StatusCode);
+        using var overviewJson = JsonDocument.Parse(await overview.Content.ReadAsStringAsync());
+        Assert.Equal(0, overviewJson.RootElement.GetProperty("rulesTotal").GetInt32());
+
+        foreach (var endpoint in new[]
+        {
+            "/api/monitoring/expected-files",
+            "/api/monitoring/received-files",
+            "/api/monitoring/incidents",
+            "/api/monitoring/executions"
+        })
+        {
+            var response = await client.GetAsync(endpoint);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal(JsonValueKind.Array, json.RootElement.ValueKind);
+        }
     }
 
     /// <summary>Remplace la connexion SQLite de l'application par une base en mémoire partagée.</summary>
