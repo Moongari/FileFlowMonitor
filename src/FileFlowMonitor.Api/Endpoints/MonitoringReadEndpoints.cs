@@ -25,16 +25,36 @@ public static class MonitoringReadEndpoints
 
             var startedAt = DateTimeOffset.UtcNow;
             await cycle.ExecuteAsync(ct, ruleId);
-            var executions = db.MonitoringExecutions.AsNoTracking()
-                .Where(x => x.StartedAtUtc >= startedAt.AddSeconds(-1));
-            var completed = await executions.CountAsync(x => x.CompletedAtUtc != null && x.Error == null, ct);
-            var failed = await executions.CountAsync(x => x.Error != null, ct);
+            var executions = await db.MonitoringExecutions.AsNoTracking()
+                .Where(x => x.StartedAtUtc >= startedAt.AddSeconds(-1) &&
+                    (!ruleId.HasValue || x.MonitoringRuleId == ruleId.Value))
+                .OrderByDescending(x => x.StartedAtUtc).ToListAsync(ct);
+            var expected = await db.ExpectedFiles.AsNoTracking()
+                .Where(x => !ruleId.HasValue || x.MonitoringRuleId == ruleId.Value)
+                .ToListAsync(ct);
+            var received = await db.ReceivedFiles.AsNoTracking()
+                .Where(x => !ruleId.HasValue || x.MonitoringRuleId == ruleId.Value)
+                .ToListAsync(ct);
+            var completed = executions.Count(x => x.CompletedAtUtc != null && x.Error == null);
+            var failed = executions.Count(x => x.Error != null);
+            var missing = expected.Count(x => x.Status == ExpectedFileStatus.Missing);
+            var late = expected.Count(x => x.Status == ExpectedFileStatus.Late);
+            var matched = expected.Count(x => x.Status is ExpectedFileStatus.Received or ExpectedFileStatus.Late);
+            var unmatched = expected.Where(x => x.Status == ExpectedFileStatus.Missing)
+                .OrderBy(x => x.ExpectedAtUtc).Take(20)
+                .Select(x => new { x.ExpectedFileName, x.ExpectedAtUtc, x.DeadlineAtUtc }).ToList();
             return Results.Ok(new
             {
                 message = "Réconciliation terminée.",
                 startedAtUtc = startedAt,
                 completedRules = completed,
-                failedRules = failed
+                failedRules = failed,
+                filesDetected = received.Count,
+                expectedOccurrences = expected.Count,
+                matchedOccurrences = matched,
+                missingOccurrences = missing,
+                lateOccurrences = late,
+                remainingMissing = unmatched
             });
         })
         .WithName("ForceMonitoringReconciliation")
