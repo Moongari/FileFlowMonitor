@@ -7,10 +7,13 @@
 - [ ] Entités, enums, contrats et tests du domaine.
 - [ ] Documentation d'architecture et de conception.
 
-## Phase 2 — Gestion des règles
-- CRUD des sources et règles.
-- Validation des horaires, tolérances, formats et modèles de nommage.
-- Génération des occurrences attendues.
+## Phase 2 — Gestion des règles et API REST
+- [x] CRUD des règles dans Domain / Application / Infrastructure.
+- [x] Endpoints REST de consultation, création, modification, activation/désactivation et suppression.
+- [x] Validation des requêtes et réponses HTTP documentées.
+- [x] Swagger / OpenAPI avec résumés, descriptions et commentaires XML.
+- [x] Documentation des endpoints dans `docs/API.md`.
+- [ ] Génération des occurrences attendues à partir des règles et du calendrier.
 
 ## Phase 3 — Moteur de surveillance
 - Watcher et scan périodique.
