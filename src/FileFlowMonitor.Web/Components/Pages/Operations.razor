@@ -29,9 +29,9 @@ else{
  }
  public async ValueTask DisposeAsync(){_refreshCancellation.Cancel();await _refreshLoop;_refreshCancellation.Dispose();}
  private string TabClass(string t)=>_tab==t?"tab active":"tab";
- private async Task Select(string t){_tab=t;await LoadAsync();}
+ private async Task Select(string t){_tab=t;_rows=[];await LoadAsync();}
  private async Task LoadAsync(){
-  _loading=true;_error=null;
+  _loading=_rows.Count==0;_error=null;
   try{
    var api=ClientFactory.CreateClient("FileFlowApi");
    var url=_tab switch{"expected"=>$"api/monitoring/expected-files?date={_date:yyyy-MM-dd}","received"=>"api/monitoring/received-files?limit=200","incidents"=>"api/monitoring/incidents?limit=200","executions"=>"api/monitoring/executions?limit=200",_=>""};
