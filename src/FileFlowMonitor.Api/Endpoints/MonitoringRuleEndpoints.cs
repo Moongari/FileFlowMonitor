@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
 using FileFlowMonitor.Api.Contracts;
 using FileFlowMonitor.Application.MonitoringRules;
 
@@ -84,7 +85,7 @@ public static class MonitoringRuleEndpoints
             Guid id,
             MonitoringRuleRequest request,
             MonitoringRuleService service,
-            ILogger<MonitoringRuleEndpoints> logger,
+            ILogger logger,
             CancellationToken ct) =>
         {
             var validation = Validate(request);
