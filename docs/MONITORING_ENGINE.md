@@ -33,6 +33,7 @@ A rule FolderPath can be a local path or UNC path (for example, \\\\fileserver\\
 - Received: a matching file was detected within the grace period.
 - Late: a matching file was detected after the grace period.
 - Invalid: a matching expected filename has a disallowed extension.
+- Cancelled: a future occurrence was cancelled after its rule was changed, disabled or deleted.
 
 Arrival time is the first scan detection time, not the file last-write timestamp. A file is only matched after its size and last-write metadata remain unchanged for the configured stability period.
 
@@ -40,6 +41,7 @@ Arrival time is the first scan detection time, not the file last-write timestamp
 
 - Exact-name and filename-template planning are supported by the existing planner.
 - Pattern and quantity modes intentionally do not invent expected filenames. Count-based shortfall reporting is a later increment.
+- Updating, disabling or deleting a rule cancels its future Scheduled/Waiting occurrences; past and received history is retained.
 - Scanning is top-level only; recursive subfolder support is not enabled.
 - The current matcher handles expected names and extensions. Content validation, checksums, duplicate classification, holiday calendars, business-date rollover, and FileSystemWatcher acceleration remain later increments.
 - Folder disappearance is recorded as one open incident and resolved when the folder becomes accessible again.
