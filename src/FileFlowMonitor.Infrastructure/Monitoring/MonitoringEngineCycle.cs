@@ -120,8 +120,11 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                 continue;
             }
 
-            if (existing.StableAtUtc.HasValue ||
-                now - existing.DetectedAtUtc < TimeSpan.FromSeconds(rule.StabilityPeriodSeconds))
+            if (existing.StableAtUtc.HasValue)
+                continue;
+
+            if (rule.StabilityPeriodSeconds > 0 &&
+                now < existing.DetectedAtUtc.AddSeconds(rule.StabilityPeriodSeconds))
                 continue;
 
             // Re-read metadata immediately before qualifying the file. A changed
