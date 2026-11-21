@@ -134,24 +134,29 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                     StringComparer.OrdinalIgnoreCase))
             {
                 existing.MarkStable(now);
-                var invalidExpected = await db.ExpectedFiles.FirstOrDefaultAsync(x =>
-                    x.MonitoringRuleId == rule.Id && x.ExpectedFileName.ToLower() == info.Name.ToLower() &&
-                    x.Status != ExpectedFileStatus.Received && x.Status != ExpectedFileStatus.Late,
-                    cancellationToken);
+                var invalidCandidates = await db.ExpectedFiles
+                    .Where(x => x.MonitoringRuleId == rule.Id &&
+                                x.Status != ExpectedFileStatus.Received &&
+                                x.Status != ExpectedFileStatus.Late)
+                    .ToListAsync(cancellationToken);
+                var invalidExpected = invalidCandidates.FirstOrDefault(x =>
+                    string.Equals(x.ExpectedFileName, info.Name, StringComparison.OrdinalIgnoreCase));
                 invalidExpected?.MarkInvalid();
                 continue;
             }
 
             existing.MarkStable(now);
-            var expectedFile = await db.ExpectedFiles
+            var expectedCandidates = await db.ExpectedFiles
                 .Where(x => x.MonitoringRuleId == rule.Id &&
-                            x.ExpectedFileName.ToLower() == info.Name.ToLower() &&
                             (x.Status == ExpectedFileStatus.Scheduled ||
                              x.Status == ExpectedFileStatus.Waiting ||
                              x.Status == ExpectedFileStatus.Missing))
+                .ToListAsync(cancellationToken);
+            var expectedFile = expectedCandidates
+                .Where(x => string.Equals(x.ExpectedFileName, info.Name, StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(x => x.ExpectedAtUtc <= existing.DetectedAtUtc)
                 .ThenByDescending(x => x.ExpectedAtUtc)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FirstOrDefault();
 
             if (expectedFile is not null)
                 expectedFile.MarkReceived(existing.Id, existing.DetectedAtUtc);
