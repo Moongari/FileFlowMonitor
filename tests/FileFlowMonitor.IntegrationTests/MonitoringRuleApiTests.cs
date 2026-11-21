@@ -97,7 +97,7 @@ public sealed class MonitoringRuleApiTests
             await scope.ServiceProvider.GetRequiredService<FileFlowDbContext>().Database.EnsureCreatedAsync();
 
         var overview = await client.GetAsync("/api/monitoring/overview");
-        Assert.Equal(HttpStatusCode.OK, overview.StatusCode);
+        Assert.True(overview.IsSuccessStatusCode, $"overview returned {(int)overview.StatusCode}: {await overview.Content.ReadAsStringAsync()}");
         using var overviewJson = JsonDocument.Parse(await overview.Content.ReadAsStringAsync());
         Assert.Equal(0, overviewJson.RootElement.GetProperty("rulesTotal").GetInt32());
 
