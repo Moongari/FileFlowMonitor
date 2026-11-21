@@ -54,6 +54,16 @@ public sealed class MonitoringRuleApiTests
         var get = await client.GetAsync($"/api/monitoring-rules/{id}");
         Assert.Equal(HttpStatusCode.OK, get.StatusCode);
 
+        var updatePayload = new
+        {
+            name = "Citi API test updated", payload.folderPath, payload.matchingMode, payload.fileNamePattern,
+            payload.expectedCount, payload.expectedFileNames, payload.allowedExtensions,
+            scheduleTimes = new[] { "09:30:00" }, payload.days, payload.timeZoneId,
+            gracePeriodMinutes = 20, payload.stabilityPeriodSeconds, payload.isEnabled
+        };
+        var update = await client.PutAsJsonAsync($"/api/monitoring-rules/{id}", updatePayload);
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+
         var invalid = await client.PostAsJsonAsync("/api/monitoring-rules", new { name = "", folderPath = "" });
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
 
