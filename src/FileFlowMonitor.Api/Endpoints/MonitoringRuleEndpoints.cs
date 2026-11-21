@@ -74,8 +74,11 @@ public static class MonitoringRuleEndpoints
               "stabilityPeriodSeconds": 5,
               "isEnabled": true
             }
-            matchingMode : 0=ExactName, 1=FileNameTemplate, 2=Pattern, 3=Quantity.
-            Dans le moteur actuel, seuls ExactName et FileNameTemplate sont exécutés.
+            matchingMode : 0=ExactName, 1=FileNameTemplate, 2=Pattern (expression régulière), 3=Quantity.
+            Exemple Pattern : {"matchingMode":2,"fileNamePattern":"^Trade[12]_\\d{8}_\\d{5}\\.csv$","expectedCount":2,"allowedExtensions":["csv"]}.
+            Exemple Quantity : {"matchingMode":3,"expectedCount":2,"allowedExtensions":["csv"]}.
+            Pattern applique l'expression régulière au nom du fichier, sans tenir compte de la casse et avec un délai maximal de 250 ms.
+            Quantity attend le nombre de fichiers indiqué à chaque horaire ; les extensions autorisées filtrent les fichiers. Une liste vide accepte toutes les extensions.
             days=31 correspond à lundi-vendredi (1+2+4+8+16).
             """)
         .Produces<MonitoringRuleResponse>(StatusCodes.Status201Created).ProducesValidationProblem();
