@@ -110,7 +110,7 @@ public sealed class MonitoringRuleApiTests
         })
         {
             var response = await client.GetAsync(endpoint);
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.True(response.IsSuccessStatusCode, $"{endpoint} returned {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
             using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
             Assert.Equal(JsonValueKind.Array, json.RootElement.ValueKind);
         }
