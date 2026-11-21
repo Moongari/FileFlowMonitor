@@ -1,5 +1,5 @@
 @page "/"
-@implements IDisposable
+@implements IAsyncDisposable
 @inject IHttpClientFactory ClientFactory
 <PageTitle>Vue d'ensemble | FileFlow Monitor</PageTitle>
 <div class="page-heading">
@@ -16,7 +16,7 @@ else if (!string.IsNullOrEmpty(_error))
 }
 else if (_data is not null)
 {
-    <div class="status-strip"><span class="pulse"></span> Données actualisées à @_generatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") <span class="muted">• Actualisation manuelle</span></div>
+    <div class="status-strip"><span class="pulse"></span> Données actualisées à @_generatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") <span class="muted">• Actualisation automatique toutes les 30 secondes</span></div>
     <div class="metric-grid">
         <div class="metric-card"><span>Règles actives</span><strong>@_data.RootElement.GetProperty("rulesEnabled").GetInt32()<small> / @_data.RootElement.GetProperty("rulesTotal").GetInt32()</small></strong><em>Surveillances configurées</em></div>
         <div class="metric-card"><span>Fichiers attendus</span><strong>@Value("expectedToday")</strong><em>Pour la journée</em></div>
@@ -57,9 +57,31 @@ else if (_data is not null)
     private bool _loading = true;
     private string? _error;
     private DateTimeOffset _generatedAt;
-    protected override async Task OnInitializedAsync() => await RefreshAsync();
+    private readonly CancellationTokenSource _refreshCancellation = new();
+    private Task _refreshLoop = Task.CompletedTask;
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        _refreshLoop = RefreshLoopAsync(_refreshCancellation.Token);
+    }
+    private async Task RefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+                await InvokeAsync(RefreshAsync);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+    }
     private int Value(string key) => _data!.RootElement.GetProperty(key).GetInt32();
-    public void Dispose() => _data?.Dispose();
+    public async ValueTask DisposeAsync()
+    {
+        _refreshCancellation.Cancel();
+        await _refreshLoop;
+        _refreshCancellation.Dispose();
+        _data?.Dispose();
+    }
     private async Task RefreshAsync()
     {
         _loading = true; _error = null;
