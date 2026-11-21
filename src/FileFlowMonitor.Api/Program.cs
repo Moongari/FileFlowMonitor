@@ -62,6 +62,7 @@ app.MapGet("/health/database", async (FileFlowDbContext db, CancellationToken ct
 .ProducesProblem(StatusCodes.Status500InternalServerError);
 
 app.MapMonitoringRuleEndpoints();
+app.MapMonitoringReadEndpoints();
 app.Run();
 
 /// <summary>Point d'entrée exposé aux tests d'intégration via WebApplicationFactory.</summary>
