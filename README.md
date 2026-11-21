@@ -15,7 +15,7 @@ Détecter de façon fiable les fichiers attendus, identifier précisément les f
 - Formats configurables : CSV, XLS/XLSX, PDF, XML, JSON, TXT, DAT, ZIP, etc.
 - États : planifié, en attente, reçu, en retard, manquant, invalide, doublon, dossier indisponible.
 - Vérification de stabilité avant traitement.
-- Tableau de bord temps réel via SignalR, historique et alertes.
+- Tableau de bord Blazor avec indicateurs, règles, fichiers attendus/reçus, incidents et historique des cycles. Actualisation manuelle dans cette première version.
 - Surveillance en lecture seule : aucun déplacement ou effacement des fichiers entrants.
 
 Un motif générique comme `trade*.csv` ne permet pas de connaître le nom précis d'un fichier manquant. Pour une identification exacte, la règle doit fournir les noms attendus, un modèle daté/séquencé ou un manifeste. Une règle basée uniquement sur une quantité signale un écart de quantité.
@@ -24,8 +24,8 @@ Un motif générique comme `trade*.csv` ne permet pas de connaître le nom préc
 
 - **Cibles .NET 8 et .NET 10** avec une seule base de code et une seule solution.
 - ASP.NET Core Web API et service d'arrière-plan.
-- Blazor Web App (interface à construire).
-- SignalR pour les mises à jour temps réel.
+- Blazor Web App avec rendu interactif côté serveur.
+- API HTTP dédiée aux vues opérationnelles et à la configuration.
 - Entity Framework Core avec **SQLite sur les deux cibles**.
 - Clean Architecture : Domain, Application, Infrastructure, Api, Web.
 
@@ -71,9 +71,32 @@ Documentation : [Architecture](docs/ARCHITECTURE.md), [Conception](docs/DESIGN.m
 
 ## État du développement
 
-Branche de travail : `feature/initial-architecture`. La branche `main` reste intacte jusqu'à validation explicite.
+Branche de travail : `feature/monitoring-engine`. La branche `main` reste intacte jusqu'à validation explicite.
 
-Socle initial en place : solution et projets .NET, premières entités métier, planification des fichiers attendus, persistance EF Core SQLite, CRUD des règles via API REST, documentation Swagger et tests unitaires / d'intégration. Le moteur de surveillance et l'interface Blazor restent à développer. La CI GitHub Actions compile et exécute les tests sur .NET 8 et .NET 10.
+En cours : moteur de réconciliation périodique, génération des occurrences attendues, détection et stabilisation des fichiers, endpoints de supervision, gestion des règles dans Blazor, tableau de bord et vues opérationnelles. Swagger documente les routes et inclut un exemple Citi sur la création d'une règle. La validation CI complète sur les deux frameworks reste obligatoire avant intégration dans `main`.
+
+
+## Lancer l'application en local
+
+L'API et l'interface sont deux processus séparés. Depuis la racine du dépôt, ouvrir deux terminaux PowerShell :
+
+**Terminal 1 — API et moteur de surveillance**
+
+```powershell
+dotnet run --project src/FileFlowMonitor.Api
+```
+
+API : http://localhost:5080 — Swagger : http://localhost:5080/swagger
+
+**Terminal 2 — Interface Blazor**
+
+```powershell
+dotnet run --project src/FileFlowMonitor.Web
+```
+
+Interface : http://localhost:5081
+
+L'URL de l'API est configurable dans `src/FileFlowMonitor.Web/appsettings.json` via `Api:BaseUrl`. L'intervalle du moteur est configurable dans `src/FileFlowMonitor.Api/appsettings.json` via `Monitoring:PollIntervalSeconds` (30 secondes par défaut).
 
 ## Scénario de référence
 
