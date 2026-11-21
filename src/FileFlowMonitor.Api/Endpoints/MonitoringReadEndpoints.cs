@@ -59,7 +59,7 @@ public static class MonitoringReadEndpoints
         })
         .WithName("GetMonitoringOverview")
         .WithSummary("Vue d'ensemble de la supervision")
-        .WithDescription("Retourne les indicateurs du jour, l'état des règles, les incidents ouverts et les dernières exécutions. Exemple : rulesEnabled=3, receivedToday=5, missingToday=1.")
+        .WithDescription("Retourne les indicateurs du jour, l'état des règles, les incidents ouverts et les dernières exécutions. Exemple de réponse : { generatedAtUtc: 2026-11-21T08:15:00Z, rulesTotal: 3, rulesEnabled: 3, expectedToday: 6, receivedToday: 5, lateToday: 0, missingToday: 1, openIncidents: 1 }.")
         .Produces(StatusCodes.Status200OK);
 
         group.MapGet("/expected-files", async (
@@ -85,7 +85,7 @@ public static class MonitoringReadEndpoints
         })
         .WithName("GetExpectedFiles")
         .WithSummary("Consulter les fichiers attendus")
-        .WithDescription("Liste les fichiers attendus pour une date. Filtres facultatifs : date (AAAA-MM-JJ), ruleId et status (Scheduled, Waiting, Missing, Received, Late, Invalid, Duplicate, Cancelled).")
+        .WithDescription("Liste les fichiers attendus pour une date métier locale. Exemple : GET /api/monitoring/expected-files?date=2026-11-21&status=Missing. Filtres facultatifs : date (AAAA-MM-JJ), ruleId et status (Scheduled, Waiting, Missing, Received, Late, Invalid, Duplicate, Cancelled). Exemple de réponse : [{ expectedFileName: trades.csv, expectedAtUtc: 2026-11-21T07:00:00Z, deadlineAtUtc: 2026-11-21T07:15:00Z, status: Missing }].")
         .Produces(StatusCodes.Status200OK);
 
         group.MapGet("/received-files", async (FileFlowDbContext db, int? limit, CancellationToken ct) =>
@@ -101,7 +101,7 @@ public static class MonitoringReadEndpoints
         })
         .WithName("GetReceivedFiles")
         .WithSummary("Consulter les fichiers détectés")
-        .WithDescription("Retourne les derniers fichiers observés par le moteur, avec chemin, taille, date de détection et date de stabilisation. Paramètre limit : 1 à 500, 100 par défaut.")
+        .WithDescription("Retourne les derniers fichiers observés par le moteur, avec chemin, taille, date de détection et date de stabilisation. Paramètre limit : 1 à 500, 100 par défaut. Exemple de réponse : [{ fileName: trades.csv, fullPath: D:\\FileFlow\\Citi\\trades.csv, sizeBytes: 24576, detectedAtUtc: 2026-11-21T07:01:00Z, stableAtUtc: 2026-11-21T07:01:05Z }].")
         .Produces(StatusCodes.Status200OK);
 
         group.MapGet("/incidents", async (FileFlowDbContext db, bool? openOnly, int? limit, CancellationToken ct) =>
@@ -119,7 +119,7 @@ public static class MonitoringReadEndpoints
         })
         .WithName("GetMonitoringIncidents")
         .WithSummary("Consulter les incidents")
-        .WithDescription("Liste les incidents de surveillance. Utiliser openOnly=true pour ne voir que les incidents non résolus. Limite comprise entre 1 et 500.")
+        .WithDescription("Liste les incidents de surveillance. Utiliser openOnly=true pour ne voir que les incidents non résolus. Limite comprise entre 1 et 500. Exemple de réponse : [{ code: FOLDER_UNAVAILABLE, message: Le dossier source est inaccessible, occurredAtUtc: 2026-11-21T07:00:00Z, isResolved: false }].")
         .Produces(StatusCodes.Status200OK);
 
         group.MapGet("/executions", async (FileFlowDbContext db, int? limit, CancellationToken ct) =>
@@ -136,7 +136,7 @@ public static class MonitoringReadEndpoints
         })
         .WithName("GetMonitoringExecutions")
         .WithSummary("Consulter l'historique des cycles")
-        .WithDescription("Retourne les dernières exécutions du moteur, leur durée, le nombre de fichiers détectés et les erreurs éventuelles.")
+        .WithDescription("Retourne les dernières exécutions du moteur, leur durée, le nombre de fichiers détectés et les erreurs éventuelles. Exemple de réponse : [{ startedAtUtc: 2026-11-21T07:00:00Z, completedAtUtc: 2026-11-21T07:00:02Z, filesDiscovered: 2, error: null }].")
         .Produces(StatusCodes.Status200OK);
 
         return endpoints;
