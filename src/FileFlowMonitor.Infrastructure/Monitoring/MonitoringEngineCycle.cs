@@ -188,7 +188,7 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                              x.Status == ExpectedFileStatus.Waiting ||
                              x.Status == ExpectedFileStatus.Missing) &&
                             x.ReceivedFileId == null &&
-                            string.Equals(x.ExpectedFileName, info.Name, StringComparison.OrdinalIgnoreCase))
+                            planner.MatchesFileName(rule, x, info.Name))
                 .OrderByDescending(x => x.ExpectedAtUtc <= existing.DetectedAtUtc)
                 .ThenByDescending(x => x.ExpectedAtUtc)
                 .FirstOrDefault();
