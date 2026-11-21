@@ -15,7 +15,7 @@ Détecter de façon fiable les fichiers attendus, identifier précisément les f
 - Formats configurables : CSV, XLS/XLSX, PDF, XML, JSON, TXT, DAT, ZIP, etc.
 - États : planifié, en attente, reçu, en retard, manquant, invalide, annulé et dossier indisponible. La qualification des doublons est prévue dans un lot ultérieur.
 - Vérification de stabilité avant traitement.
-- Tableau de bord Blazor avec indicateurs, règles, fichiers attendus/reçus, incidents et historique des cycles. Actualisation manuelle dans cette première version.
+- Tableau de bord Blazor avec indicateurs, règles, fichiers attendus/reçus, incidents et historique des cycles. Actualisation automatique toutes les 30 secondes.
 - Surveillance en lecture seule : aucun déplacement ou effacement des fichiers entrants.
 
 Un motif générique comme `trade*.csv` ne permet pas de connaître le nom précis d'un fichier manquant. Pour une identification exacte, la règle doit fournir les noms attendus, un modèle daté/séquencé ou un manifeste. Une règle basée uniquement sur une quantité signale un écart de quantité.
