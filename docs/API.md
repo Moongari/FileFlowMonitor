@@ -30,12 +30,12 @@ Content-Type: application/json
   "folderPath": "D:\\FileFlow\\Citi",
   "matchingMode": 0,
   "fileNamePattern": null,
-  "expectedCount": 1,
+  "expectedCount": 2,
   "expectedFileNames": ["trades.csv", "positions.csv"],
-  "allowedExtensions": ["csv", "pdf"],
+  "allowedExtensions": ["csv"],
   "scheduleTimes": ["08:00:00", "12:00:00"],
   "days": 31,
-  "timeZoneId": "Romance Standard Time",
+  "timeZoneId": "Europe/Paris",
   "gracePeriodMinutes": 15,
   "stabilityPeriodSeconds": 5,
   "isEnabled": true
@@ -53,7 +53,7 @@ Content-Type: application/json
 { "isEnabled": false }
 ```
 
-La réponse est `204 No Content`. Une règle désactivée est conservée en base et sera exclue des traitements du moteur lorsqu'il sera implémenté.
+La réponse est `204 No Content`. Une règle désactivée est conservée en base et exclue des cycles du moteur.
 
 ## Contrat de configuration
 
@@ -72,6 +72,21 @@ La réponse est `204 No Content`. Une règle désactivée est conservée en base
 
 Les erreurs de validation du contrat ou les violations des invariants métier sont retournées en HTTP 400 au format `ValidationProblemDetails`. Un identifiant inexistant produit HTTP 404.
 
+
+## Supervision opérationnelle
+
+Les routes de lecture suivantes alimentent le tableau de bord Blazor et sont également disponibles dans Swagger :
+
+| Méthode | Route | Description |
+|---|---|---|
+| GET | `/api/monitoring/overview` | Indicateurs du jour, état des règles, incidents et dernières exécutions |
+| GET | `/api/monitoring/expected-files?date=2026-11-21` | Fichiers attendus pour une date, avec filtres facultatifs `ruleId` et `status` |
+| GET | `/api/monitoring/received-files?limit=100` | Derniers fichiers détectés et stabilisés |
+| GET | `/api/monitoring/incidents?openOnly=true` | Incidents ouverts ou historique complet |
+| GET | `/api/monitoring/executions?limit=100` | Historique des cycles du moteur |
+
+Le tableau de bord est disponible sur `http://localhost:5081` lorsque le projet Web est lancé. L'API et Swagger utilisent `http://localhost:5080` en configuration locale. La base reste SQLite.
+
 ## Santé de l'API
 
 | Méthode | Route | Description |
@@ -85,4 +100,4 @@ Les erreurs de validation du contrat ou les violations des invariants métier so
 - Les opérations métier sont orchestrées par `MonitoringRuleService`.
 - La persistance reste EF Core avec SQLite.
 - Les commentaires XML et les résumés/descriptions des endpoints alimentent Swagger.
-- Le CRUD ne démarre pas encore la surveillance des dossiers : le moteur appartient à une phase ultérieure.
+- Le moteur de surveillance s’exécute dans l’API via un service d’arrière-plan. La période est configurable avec Monitoring:PollIntervalSeconds (30 secondes par défaut).
