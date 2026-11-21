@@ -62,4 +62,41 @@ public sealed class ExpectedFilePlannerTests
         Assert.Empty(result);
     }
 
+
+    [Fact]
+    public void Plan_Expands_Multiple_File_Templates_For_Each_Schedule_Time()
+    {
+        var rule = new MonitoringRule("Citi hourly", @"D:\\Inbound", MatchingMode.FileNameTemplate);
+        rule.ConfigureMatching(MatchingMode.FileNameTemplate,
+            "trade1_{DATE}_{TIME}.csv;trade2_{DATE}_{TIME}.csv");
+        rule.ConfigureCalendar(WeekDays.EveryDay, "UTC");
+        rule.ConfigureTiming(15, 5);
+        rule.SetScheduleTimes([new TimeOnly(8, 0), new TimeOnly(9, 0), new TimeOnly(18, 0)]);
+
+        var result = new ExpectedFilePlanner().Plan(rule, new DateOnly(2026, 11, 21));
+
+        Assert.Equal(6, result.Count);
+        Assert.Contains(result, x => x.ExpectedFileName == "trade1_20261121_080000.csv");
+        Assert.Contains(result, x => x.ExpectedFileName == "trade2_20261121_080000.csv");
+        Assert.Contains(result, x => x.ExpectedFileName == "trade1_20261121_090000.csv");
+        Assert.Contains(result, x => x.ExpectedFileName == "trade2_20261121_090000.csv");
+        Assert.Contains(result, x => x.ExpectedFileName == "trade1_20261121_180000.csv");
+        Assert.Contains(result, x => x.ExpectedFileName == "trade2_20261121_180000.csv");
+        Assert.Equal(2, result.Count(x => x.ExpectedAtUtc == result.Single(y => y.ExpectedFileName == "trade1_20261121_180000.csv").ExpectedAtUtc));
+    }
+
+    [Fact]
+    public void Plan_Expands_Hour_Minute_And_Second_Tokens()
+    {
+        var rule = new MonitoringRule("Hourly", @"D:\\Inbound", MatchingMode.FileNameTemplate);
+        rule.ConfigureMatching(MatchingMode.FileNameTemplate,
+            "feed_{YYYY}{MM}{DD}_{HH}{MINUTES}{SECONDS}.dat");
+        rule.ConfigureCalendar(WeekDays.EveryDay, "UTC");
+        rule.SetScheduleTimes([new TimeOnly(9, 7, 5)]);
+
+        var result = Assert.Single(new ExpectedFilePlanner().Plan(rule, new DateOnly(2026, 11, 21)));
+
+        Assert.Equal("feed_20261121_090705.dat", result.ExpectedFileName);
+    }
+
 }
