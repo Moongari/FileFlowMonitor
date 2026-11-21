@@ -70,10 +70,10 @@ public sealed class MonitoringEngineTests
                 var nextOccurrence = Assert.Single(expectedFiles.Where(x => x.ExpectedAtUtc > DateTimeOffset.UtcNow));
                 var received = await verify.ReceivedFiles.SingleAsync(x => x.MonitoringRuleId == ruleId);
                 Assert.Equal(2, expectedFiles.Count);
+                Assert.NotNull(received.StableAtUtc);
                 Assert.Equal(ExpectedFileStatus.Received, expected.Status);
                 Assert.Equal(ExpectedFileStatus.Scheduled, nextOccurrence.Status);
                 Assert.Equal(received.Id, expected.ReceivedFileId);
-                Assert.NotNull(received.StableAtUtc);
                 Assert.Equal(2, await verify.MonitoringExecutions.CountAsync(x => x.MonitoringRuleId == ruleId));
             }
         }
