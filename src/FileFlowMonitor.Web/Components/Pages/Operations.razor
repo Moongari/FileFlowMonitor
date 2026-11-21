@@ -2,9 +2,10 @@
 @implements IAsyncDisposable
 @inject IHttpClientFactory ClientFactory
 <PageTitle>Fichiers et incidents | FileFlow Monitor</PageTitle>
-<div class="page-heading"><div><div class="eyebrow">ACTIVITÉ OPÉRATIONNELLE</div><h1>Fichiers & incidents</h1><p>Suivez les réceptions attendues, les fichiers détectés et les anomalies. Actualisation automatique toutes les 30 secondes.</p></div><button class="button-secondary" @onclick="LoadAsync">↻ Actualiser</button></div>
+<div class="page-heading"><div><div class="eyebrow">ACTIVITÉ OPÉRATIONNELLE</div><h1>Fichiers & incidents</h1><p>Suivez les réceptions attendues, les fichiers détectés et les anomalies. Actualisation automatique toutes les 30 secondes.</p></div><div class="heading-actions"><button class="button-primary" disabled="@_reconciling" @onclick="ForceReconciliationAsync">@(_reconciling ? "Réconciliation…" : "⟳ Forcer la réconciliation")</button><button class="button-secondary" @onclick="LoadAsync">↻ Actualiser</button></div></div>
 <div class="tabs"><button class='@TabClass("expected")' @onclick='() => Select("expected")'>Fichiers attendus</button><button class='@TabClass("received")' @onclick='() => Select("received")'>Fichiers détectés</button><button class='@TabClass("incidents")' @onclick='() => Select("incidents")'>Incidents</button><button class='@TabClass("executions")' @onclick='() => Select("executions")'>Cycles moteur</button></div>
 @if (!string.IsNullOrEmpty(_error)){<div class="alert alert-error">@_error</div>}
+@if (!string.IsNullOrEmpty(_success)){<div class="alert alert-success">@_success</div>}
 <section class="panel">
 <div class="panel-heading"><div><h2>@TabTitle</h2><p>@TabDescription</p></div>
 @if(_tab=="expected"){<input class="date-filter" type="date" @bind="_date" @bind:after="LoadAsync" />}
@@ -17,7 +18,7 @@ else{
 </tbody></table></div>}
 </section>
 @code{
- private string _tab="expected"; private DateTime _date=DateTime.Today; private bool _loading=true; private string? _error; private List<JsonElement> _rows=[]; private string[] _columns=[]; private string[] _keys=[];
+ private string _tab="expected"; private DateTime _date=DateTime.Today; private bool _loading=true; private bool _reconciling; private string? _error; private string? _success; private List<JsonElement> _rows=[]; private string[] _columns=[]; private string[] _keys=[];
  private string TabTitle=>_tab switch{"expected"=>"Fichiers attendus","received"=>"Fichiers détectés","incidents"=>"Incidents de surveillance",_=>"Historique des cycles"};
  private string TabDescription=>_tab switch{"expected"=>"Échéances calculées à partir des règles et de leurs horaires.","received"=>"Fichiers observés dans les dossiers surveillés, après détection.","incidents"=>"Incidents ouverts et résolus : dossier inaccessible, erreur de traitement, etc.",_=>"Exécutions périodiques du moteur de réconciliation."};
  private readonly CancellationTokenSource _refreshCancellation = new();
@@ -30,6 +31,22 @@ else{
  public async ValueTask DisposeAsync(){_refreshCancellation.Cancel();await _refreshLoop;_refreshCancellation.Dispose();}
  private string TabClass(string t)=>_tab==t?"tab active":"tab";
  private async Task Select(string t){_tab=t;_rows=[];await LoadAsync();}
+ private async Task ForceReconciliationAsync(){
+  if(_reconciling)return;
+  _reconciling=true;_error=null;_success=null;
+  try{
+   var api=ClientFactory.CreateClient("FileFlowApi");
+   using var response=await api.PostAsync("api/monitoring/reconcile",null);
+   var body=await response.Content.ReadAsStringAsync();
+   if(!response.IsSuccessStatusCode)throw new InvalidOperationException($"API {(int)response.StatusCode}: {body}");
+   using var doc=JsonDocument.Parse(body);
+   var completed=doc.RootElement.TryGetProperty("completedRules",out var count)?count.GetInt32():0;
+   var failed=doc.RootElement.TryGetProperty("failedRules",out var errors)?errors.GetInt32():0;
+   _success=$"Réconciliation terminée : {completed} règle(s) traitée(s), {failed} erreur(s). Les données affichées sont actualisées.";
+   await LoadAsync();
+  }catch(Exception ex){_error="Échec de la réconciliation forcée : "+ex.Message;}
+  finally{_reconciling=false;}
+ }
  private async Task LoadAsync(){
   _loading=_rows.Count==0;_error=null;
   try{
