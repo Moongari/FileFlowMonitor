@@ -160,4 +160,43 @@ public sealed class MonitoringEngineTests
         Assert.Equal(ExpectedFileStatus.Cancelled, persisted.Status);
     }
 
+    [Fact]
+    public async Task ReEnabling_Unchanged_Rule_Reschedules_Cancelled_Occurrence()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "FileFlowMonitor.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<FileFlowDbContext>().UseSqlite(connection).Options;
+
+        try
+        {
+            await using var db = new FileFlowDbContext(options);
+            await db.Database.EnsureCreatedAsync();
+            var service = new MonitoringRuleService(new MonitoringRuleRepository(db));
+            var scheduledAt = DateTimeOffset.UtcNow.AddMinutes(10);
+            var schedule = new TimeOnly(scheduledAt.Hour, scheduledAt.Minute, 0);
+            var businessDate = DateOnly.FromDateTime(scheduledAt.UtcDateTime);
+            var rule = await service.CreateAsync(new MonitoringRuleConfiguration(
+                "Re-enable feed", folder, MatchingMode.ExactName, null, 1,
+                ["future.csv"], ["csv"], [schedule], WeekDays.EveryDay,
+                TimeZoneInfo.Utc.Id, 15, 0, true));
+            var occurrence = Assert.Single(new ExpectedFilePlanner().Plan(rule, businessDate));
+            db.ExpectedFiles.Add(occurrence);
+            await db.SaveChangesAsync();
+
+            await service.SetEnabledAsync(rule.Id, false);
+            Assert.Equal(ExpectedFileStatus.Cancelled, occurrence.Status);
+
+            await service.SetEnabledAsync(rule.Id, true);
+            await new MonitoringEngineCycle(db, new ExpectedFilePlanner()).ExecuteAsync();
+
+            Assert.Equal(ExpectedFileStatus.Scheduled, occurrence.Status);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
 }
