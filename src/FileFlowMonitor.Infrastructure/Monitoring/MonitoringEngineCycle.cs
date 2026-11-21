@@ -63,9 +63,8 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
 
         // Load persisted occurrences once, then keep the in-memory key set updated
         // while planning both dates. This also deduplicates within a single cycle.
-        var existing = await db.ExpectedFiles
+        var existing = await db.ExpectedFiles.AsNoTracking()
             .Where(x => x.MonitoringRuleId == rule.Id)
-            .Select(x => new { x.ExpectedAtUtc, x.ExpectedFileName })
             .ToListAsync(cancellationToken);
         var existingKeys = existing
             .Select(x => (x.ExpectedAtUtc.UtcDateTime.Ticks, x.ExpectedFileName.ToUpperInvariant()))
