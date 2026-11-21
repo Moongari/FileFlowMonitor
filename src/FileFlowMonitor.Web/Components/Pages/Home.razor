@@ -84,7 +84,7 @@ else if (_data is not null)
     }
     private async Task RefreshAsync()
     {
-        _loading = true; _error = null;
+        _loading = _data is null; _error = null;
         try { _data?.Dispose(); _data = await ClientFactory.CreateClient("FileFlowApi").GetFromJsonAsync<JsonDocument>("api/monitoring/overview"); _generatedAt = _data!.RootElement.GetProperty("generatedAtUtc").GetDateTimeOffset(); }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
