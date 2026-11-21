@@ -1,4 +1,5 @@
 using FileFlowMonitor.Api.Endpoints;
+using FileFlowMonitor.Api.Services;
 using FileFlowMonitor.Application.MonitoringRules;
 using FileFlowMonitor.Infrastructure;
 using FileFlowMonitor.Infrastructure.Persistence;
@@ -10,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("FileFlow") ?? "Data Source=fileflowmonitor.db";
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<MonitoringRuleService>();
+builder.Services.AddHostedService<MonitoringBackgroundService>();
 
 // Swagger expose le contrat OpenAPI et les commentaires XML en développement.
 builder.Services.AddEndpointsApiExplorer();
