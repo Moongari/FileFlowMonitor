@@ -131,8 +131,9 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
             // Re-read metadata immediately before qualifying the file. A changed
             // file will be observed as a new version on the next reconciliation.
             info.Refresh();
+            var confirmedLastWrite = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero);
             if (!info.Exists || info.Length != existing.SizeBytes ||
-                new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero) != existing.LastWriteTimeUtc)
+                Math.Abs((confirmedLastWrite - existing.LastWriteTimeUtc).TotalSeconds) >= 1)
                 continue;
 
             if (rule.AllowedExtensions.Count > 0 &&
