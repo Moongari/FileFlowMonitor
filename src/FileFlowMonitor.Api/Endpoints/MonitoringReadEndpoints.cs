@@ -15,7 +15,7 @@ public static class MonitoringReadEndpoints
         {
             var now = DateTimeOffset.UtcNow;
             var dayStart = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
-            var rules = await db.MonitoringRules.AsNoTracking().ToListAsync(ct);
+            var rules = await db.MonitoringRules.AsNoTracking().Include(x => x.ScheduleTimes).ToListAsync(ct);
             var expected = await db.ExpectedFiles.AsNoTracking()
                 .Where(x => x.ExpectedAtUtc >= dayStart).ToListAsync(ct);
             var incidents = await db.MonitoringIncidents.AsNoTracking()
@@ -103,7 +103,7 @@ public static class MonitoringReadEndpoints
                 .Select(x => new
                 {
                     x.Id, x.MonitoringRuleId, x.ExpectedFileId, x.Code, x.Message,
-                    x.OccurredAtUtc, x.ResolvedAtUtc, x.IsResolved
+                    x.OccurredAtUtc, x.ResolvedAtUtc, isResolved = x.ResolvedAtUtc != null
                 }).ToListAsync(ct);
             return Results.Ok(rows);
         })
