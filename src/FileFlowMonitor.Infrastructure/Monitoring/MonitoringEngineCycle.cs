@@ -223,11 +223,12 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
     private async Task ResolveMissingFileIncidentAsync(
         Guid expectedFileId, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var open = await db.MonitoringIncidents.FirstOrDefaultAsync(x =>
+        var openIncidents = await db.MonitoringIncidents.Where(x =>
             x.ExpectedFileId == expectedFileId &&
             x.Code == "EXPECTED_FILE_MISSING" &&
-            x.ResolvedAtUtc == null, cancellationToken);
-        open?.Resolve(now);
+            x.ResolvedAtUtc == null).ToListAsync(cancellationToken);
+        foreach (var incident in openIncidents)
+            incident.Resolve(now);
     }
 
     private async Task RecordIncidentAsync(
