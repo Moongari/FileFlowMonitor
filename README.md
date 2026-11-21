@@ -22,12 +22,35 @@ Un motif générique comme `trade*.csv` ne permet pas de connaître le nom préc
 
 ## Stack et architecture
 
-- .NET 10 / C#
-- ASP.NET Core Web API et service d'arrière-plan
-- Blazor Web App (interface à construire)
-- SignalR pour les mises à jour temps réel
-- EF Core ; SQLite pour le démarrage
-- Clean Architecture : Domain, Application, Infrastructure, Api, Web
+- **Cibles .NET 8 et .NET 10** avec une seule base de code et une seule solution.
+- ASP.NET Core Web API et service d'arrière-plan.
+- Blazor Web App (interface à construire).
+- SignalR pour les mises à jour temps réel.
+- Entity Framework Core avec **SQLite sur les deux cibles**.
+- Clean Architecture : Domain, Application, Infrastructure, Api, Web.
+
+Les dépendances EF Core, ASP.NET Core TestHost et Swagger sont sélectionnées selon le framework cible afin de rester compatibles avec chaque runtime.
+
+## Prérequis SDK
+
+- Pour compiler et tester les deux cibles : SDK .NET 10 (qui sait cibler .NET 8 et .NET 10).
+- Dans un environnement disposant uniquement du SDK .NET 8, cibler explicitement .NET 8 :
+
+```powershell
+dotnet restore FileFlowMonitor.sln -p:TargetFrameworks=net8.0
+dotnet build FileFlowMonitor.sln -c Release -p:TargetFrameworks=net8.0
+dotnet test FileFlowMonitor.sln -c Release -p:TargetFrameworks=net8.0
+```
+
+Avec le SDK .NET 10, valider les deux frameworks :
+
+```powershell
+dotnet restore FileFlowMonitor.sln
+dotnet build FileFlowMonitor.sln -c Release -f net8.0
+dotnet test FileFlowMonitor.sln -c Release -f net8.0
+dotnet build FileFlowMonitor.sln -c Release -f net10.0
+dotnet test FileFlowMonitor.sln -c Release -f net10.0
+```
 
 ## Structure du dépôt
 
@@ -50,7 +73,7 @@ Documentation : [Architecture](docs/ARCHITECTURE.md), [Conception](docs/DESIGN.m
 
 Branche de travail : `feature/initial-architecture`. La branche `main` reste intacte jusqu'à validation explicite.
 
-Socle initial en place : solution et projets .NET, premières entités métier, planification des fichiers attendus, persistance EF Core SQLite, CRUD des règles via API REST, documentation Swagger et tests unitaires / d'intégration. Le moteur de surveillance et l'interface Blazor restent à développer. Le workflow GitHub Actions compile et exécute les tests avec .NET 10.
+Socle initial en place : solution et projets .NET, premières entités métier, planification des fichiers attendus, persistance EF Core SQLite, CRUD des règles via API REST, documentation Swagger et tests unitaires / d'intégration. Le moteur de surveillance et l'interface Blazor restent à développer. La CI GitHub Actions compile et exécute les tests sur .NET 8 et .NET 10.
 
 ## Scénario de référence
 
