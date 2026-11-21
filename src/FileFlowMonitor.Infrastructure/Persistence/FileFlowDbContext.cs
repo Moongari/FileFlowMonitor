@@ -1,5 +1,6 @@
 using FileFlowMonitor.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace FileFlowMonitor.Infrastructure.Persistence;
 
@@ -14,6 +15,17 @@ public sealed class FileFlowDbContext(DbContextOptions<FileFlowDbContext> option
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // SQLite cannot order or range-filter DateTimeOffset values stored as TEXT.
+        // Persist UTC-normalized values as sortable integers for reliable deadlines and chronological queries.
+        var dateTimeOffsetConverter = new DateTimeOffsetToBinaryConverter();
+        foreach (var property in modelBuilder.Model.GetEntityTypes()
+                     .SelectMany(entity => entity.GetProperties())
+                     .Where(property => property.ClrType == typeof(DateTimeOffset) ||
+                                        property.ClrType == typeof(DateTimeOffset?)))
+        {
+            property.SetValueConverter(dateTimeOffsetConverter);
+        }
+
         modelBuilder.Entity<MonitoringRule>(entity =>
         {
             entity.HasKey(x => x.Id);
