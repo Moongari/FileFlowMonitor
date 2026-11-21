@@ -134,7 +134,7 @@ public static class MonitoringReadEndpoints
             [
               {
                 "fileName": "trades.csv",
-                "fullPath": "D:\\\\FileFlow\\\\Citi\\\\trades.csv",
+                "fullPath": "D:\\FileFlow\\Citi\\trades.csv",
                 "sizeBytes": 24576,
                 "detectedAtUtc": "2026-11-21T07:01:00Z",
                 "stableAtUtc": "2026-11-21T07:01:05Z"
