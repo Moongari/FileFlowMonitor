@@ -132,7 +132,11 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                     info.Length, lastWrite, now);
                 db.ReceivedFiles.Add(existing);
                 discovered++;
-                continue;
+                // When no stability delay is configured, a newly discovered file
+                // can be verified and reconciled during this same cycle. Otherwise
+                // wait for a subsequent cycle to confirm the file is stable.
+                if (rule.StabilityPeriodSeconds > 0)
+                    continue;
             }
 
             // A stable file must still be reconciled against expected occurrences
