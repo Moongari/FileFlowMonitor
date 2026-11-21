@@ -17,13 +17,15 @@ public static class MonitoringReadEndpoints
             var dayStart = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
             var rules = await db.MonitoringRules.AsNoTracking().Include(x => x.ScheduleTimes).ToListAsync(ct);
             var dayEnd = dayStart.AddDays(1);
-            var expected = await db.ExpectedFiles.AsNoTracking()
-                .Where(x => x.ExpectedAtUtc >= dayStart && x.ExpectedAtUtc < dayEnd).ToListAsync(ct);
-            var incidents = await db.MonitoringIncidents.AsNoTracking()
-                .Where(x => x.ResolvedAtUtc == null).OrderByDescending(x => x.OccurredAtUtc)
-                .Take(10).ToListAsync(ct);
-            var executions = await db.MonitoringExecutions.AsNoTracking()
-                .OrderByDescending(x => x.StartedAtUtc).Take(10).ToListAsync(ct);
+            // SQLite stores DateTimeOffset as text by default and cannot range-filter/order it.
+            // Keep the existing database representation and apply chronological filters in memory.
+            var expected = (await db.ExpectedFiles.AsNoTracking().ToListAsync(ct))
+                .Where(x => x.ExpectedAtUtc >= dayStart && x.ExpectedAtUtc < dayEnd).ToList();
+            var allIncidents = await db.MonitoringIncidents.AsNoTracking().ToListAsync(ct);
+            var incidents = allIncidents.Where(x => x.ResolvedAtUtc == null)
+                .OrderByDescending(x => x.OccurredAtUtc).Take(10).ToList();
+            var executions = (await db.MonitoringExecutions.AsNoTracking().ToListAsync(ct))
+                .OrderByDescending(x => x.StartedAtUtc).Take(10).ToList();
 
             return Results.Ok(new
             {
@@ -35,7 +37,7 @@ public static class MonitoringReadEndpoints
                 lateToday = expected.Count(x => x.Status == ExpectedFileStatus.Late),
                 missingToday = expected.Count(x => x.Status == ExpectedFileStatus.Missing),
                 invalidToday = expected.Count(x => x.Status == ExpectedFileStatus.Invalid),
-                openIncidents = await db.MonitoringIncidents.CountAsync(x => x.ResolvedAtUtc == null, ct),
+                openIncidents = allIncidents.Count(x => x.ResolvedAtUtc == null),
                 rules = rules.OrderBy(x => x.Name).Select(x => new
                 {
                     x.Id, x.Name, x.FolderPath, x.IsEnabled, x.GracePeriodMinutes,
@@ -63,15 +65,15 @@ public static class MonitoringReadEndpoints
             var selectedDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
             var start = new DateTimeOffset(selectedDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
             var end = start.AddDays(1);
-            var query = db.ExpectedFiles.AsNoTracking()
-                .Where(x => x.ExpectedAtUtc >= start && x.ExpectedAtUtc < end);
-            if (ruleId.HasValue) query = query.Where(x => x.MonitoringRuleId == ruleId.Value);
-            if (status.HasValue) query = query.Where(x => x.Status == status.Value);
-            var rows = await query.OrderBy(x => x.ExpectedAtUtc).Select(x => new
+            var expected = await db.ExpectedFiles.AsNoTracking().ToListAsync(ct);
+            var filtered = expected.Where(x => x.ExpectedAtUtc >= start && x.ExpectedAtUtc < end);
+            if (ruleId.HasValue) filtered = filtered.Where(x => x.MonitoringRuleId == ruleId.Value);
+            if (status.HasValue) filtered = filtered.Where(x => x.Status == status.Value);
+            var rows = filtered.OrderBy(x => x.ExpectedAtUtc).Select(x => new
             {
                 x.Id, x.MonitoringRuleId, x.ExpectedFileName, x.ExpectedAtUtc,
                 x.DeadlineAtUtc, x.ReceivedAtUtc, status = x.Status.ToString()
-            }).ToListAsync(ct);
+            }).ToList();
             return Results.Ok(rows);
         })
         .WithName("GetExpectedFiles")
@@ -82,12 +84,12 @@ public static class MonitoringReadEndpoints
         group.MapGet("/received-files", async (FileFlowDbContext db, int? limit, CancellationToken ct) =>
         {
             var take = Math.Clamp(limit ?? 100, 1, 500);
-            var rows = await db.ReceivedFiles.AsNoTracking().OrderByDescending(x => x.DetectedAtUtc)
-                .Take(take).Select(x => new
+            var rows = (await db.ReceivedFiles.AsNoTracking().ToListAsync(ct))
+                .OrderByDescending(x => x.DetectedAtUtc).Take(take).Select(x => new
                 {
                     x.Id, x.MonitoringRuleId, x.FileName, x.FullPath, x.SizeBytes,
                     x.DetectedAtUtc, x.StableAtUtc, x.LastWriteTimeUtc
-                }).ToListAsync(ct);
+                }).ToList();
             return Results.Ok(rows);
         })
         .WithName("GetReceivedFiles")
@@ -97,15 +99,15 @@ public static class MonitoringReadEndpoints
 
         group.MapGet("/incidents", async (FileFlowDbContext db, bool? openOnly, int? limit, CancellationToken ct) =>
         {
-            var query = db.MonitoringIncidents.AsNoTracking();
-            if (openOnly == true) query = query.Where(x => x.ResolvedAtUtc == null);
-            var rows = await query.OrderByDescending(x => x.OccurredAtUtc)
+            var incidents = await db.MonitoringIncidents.AsNoTracking().ToListAsync(ct);
+            if (openOnly == true) incidents = incidents.Where(x => x.ResolvedAtUtc == null).ToList();
+            var rows = incidents.OrderByDescending(x => x.OccurredAtUtc)
                 .Take(Math.Clamp(limit ?? 100, 1, 500))
                 .Select(x => new
                 {
                     x.Id, x.MonitoringRuleId, x.ExpectedFileId, x.Code, x.Message,
                     x.OccurredAtUtc, x.ResolvedAtUtc, isResolved = x.ResolvedAtUtc != null
-                }).ToListAsync(ct);
+                }).ToList();
             return Results.Ok(rows);
         })
         .WithName("GetMonitoringIncidents")
@@ -115,14 +117,14 @@ public static class MonitoringReadEndpoints
 
         group.MapGet("/executions", async (FileFlowDbContext db, int? limit, CancellationToken ct) =>
         {
-            var rows = await db.MonitoringExecutions.AsNoTracking()
+            var rows = (await db.MonitoringExecutions.AsNoTracking().ToListAsync(ct))
                 .OrderByDescending(x => x.StartedAtUtc)
                 .Take(Math.Clamp(limit ?? 100, 1, 500))
                 .Select(x => new
                 {
                     x.Id, x.MonitoringRuleId, x.StartedAtUtc, x.CompletedAtUtc,
                     x.FilesDiscovered, x.Error
-                }).ToListAsync(ct);
+                }).ToList();
             return Results.Ok(rows);
         })
         .WithName("GetMonitoringExecutions")
