@@ -67,8 +67,9 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
         var existing = await db.ExpectedFiles
             .Where(x => x.MonitoringRuleId == rule.Id)
             .ToListAsync(cancellationToken);
-        var existingByKey = existing.ToDictionary(
-            x => (x.ExpectedAtUtc.UtcDateTime.Ticks, x.ExpectedFileName.ToUpperInvariant()));
+        var existingByKey = existing
+            .GroupBy(x => (x.ExpectedAtUtc.UtcDateTime.Ticks, x.ExpectedFileName.ToUpperInvariant()))
+            .ToDictionary(group => group.Key, group => group.First());
 
         foreach (var date in new[] { localDate, localDate.AddDays(1) })
         {
