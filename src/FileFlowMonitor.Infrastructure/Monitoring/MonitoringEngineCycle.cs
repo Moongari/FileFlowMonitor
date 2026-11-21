@@ -172,6 +172,14 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
             }
 
             existing.MarkStable(now);
+            // One physical file can satisfy only one expected occurrence.
+            // Do not let a later cycle reuse it for the next schedule slot.
+            var alreadyMatched = await db.ExpectedFiles.AnyAsync(x =>
+                x.MonitoringRuleId == rule.Id && x.ReceivedFileId == existing.Id,
+                cancellationToken);
+            if (alreadyMatched)
+                continue;
+
             var expectedCandidates = await db.ExpectedFiles
                 .Where(x => x.MonitoringRuleId == rule.Id)
                 .ToListAsync(cancellationToken);
