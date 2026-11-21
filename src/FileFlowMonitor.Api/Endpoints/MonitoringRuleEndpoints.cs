@@ -42,7 +42,28 @@ public static class MonitoringRuleEndpoints
             catch (Exception exception) when (IsValidationException(exception)) { return ValidationError(exception); }
         })
         .WithName("CreateMonitoringRule").WithSummary("Créer une règle de surveillance")
-        .WithDescription("Crée une règle. Exemple : surveiller D:\\FileFlow\\Citi du lundi au vendredi à 08:00 et 12:00, attendre trades.csv et positions.csv, accepter CSV avec 15 minutes de grâce. Corps JSON : { "name": "Citi - fichiers de trading", "folderPath": "D:\\\\FileFlow\\\\Citi", "matchingMode": 0, "expectedCount": 2, "expectedFileNames": ["trades.csv", "positions.csv"], "allowedExtensions": ["csv"], "scheduleTimes": ["08:00:00", "12:00:00"], "days": 31, "timeZoneId": "Europe/Paris", "gracePeriodMinutes": 15, "stabilityPeriodSeconds": 5, "isEnabled": true }. matchingMode : 0=ExactName, 1=FileNameTemplate, 2=Pattern, 3=Quantity. days=31 signifie lundi-vendredi (1+2+4+8+16).")
+        .WithDescription("""
+            Crée une règle de surveillance.
+            Exemple métier : surveiller le dossier D:\\FileFlow\\Citi du lundi au vendredi à 08:00 et 12:00.
+            Deux fichiers sont attendus à chaque horaire : trades.csv et positions.csv.
+            Exemple de corps JSON :
+            {
+              "name": "Citi - fichiers de trading",
+              "folderPath": "D:\\\\FileFlow\\\\Citi",
+              "matchingMode": 0,
+              "expectedCount": 2,
+              "expectedFileNames": ["trades.csv", "positions.csv"],
+              "allowedExtensions": ["csv"],
+              "scheduleTimes": ["08:00:00", "12:00:00"],
+              "days": 31,
+              "timeZoneId": "Europe/Paris",
+              "gracePeriodMinutes": 15,
+              "stabilityPeriodSeconds": 5,
+              "isEnabled": true
+            }
+            matchingMode : 0=ExactName, 1=FileNameTemplate, 2=Pattern, 3=Quantity.
+            days=31 correspond à lundi-vendredi (1+2+4+8+16).
+            """)
         .Produces<MonitoringRuleResponse>(StatusCodes.Status201Created).ProducesValidationProblem();
 
         // Remplace la configuration complète d'une règle existante.
