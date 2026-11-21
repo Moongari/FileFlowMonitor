@@ -149,13 +149,13 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
 
             existing.MarkStable(now);
             var expectedCandidates = await db.ExpectedFiles
-                .Where(x => x.MonitoringRuleId == rule.Id &&
-                            (x.Status == ExpectedFileStatus.Scheduled ||
-                             x.Status == ExpectedFileStatus.Waiting ||
-                             x.Status == ExpectedFileStatus.Missing))
+                .Where(x => x.MonitoringRuleId == rule.Id)
                 .ToListAsync(cancellationToken);
             var expectedFile = expectedCandidates
-                .Where(x => string.Equals(x.ExpectedFileName, info.Name, StringComparison.OrdinalIgnoreCase))
+                .Where(x => (x.Status == ExpectedFileStatus.Scheduled ||
+                             x.Status == ExpectedFileStatus.Waiting ||
+                             x.Status == ExpectedFileStatus.Missing) &&
+                            string.Equals(x.ExpectedFileName, info.Name, StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(x => x.ExpectedAtUtc <= existing.DetectedAtUtc)
                 .ThenByDescending(x => x.ExpectedAtUtc)
                 .FirstOrDefault();
