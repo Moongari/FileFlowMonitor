@@ -1,4 +1,6 @@
 using FileFlowMonitor.Application.Abstractions;
+using FileFlowMonitor.Application.ExpectedFiles;
+using FileFlowMonitor.Infrastructure.Monitoring;
 using FileFlowMonitor.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +13,8 @@ public static class DependencyInjection
     {
         services.AddDbContext<FileFlowDbContext>(options => options.UseSqlite(connectionString));
         services.AddScoped<IMonitoringRuleRepository, MonitoringRuleRepository>();
+        services.AddSingleton<ExpectedFilePlanner>();
+        services.AddScoped<MonitoringEngineCycle>();
         return services;
     }
 }
