@@ -118,33 +118,16 @@ public sealed class MonitoringRule
         if (values.Length == 0)
             throw new ArgumentException("At least one schedule time is required.", nameof(times));
 
-        // Reconcile the existing collection instead of clearing and recreating
-        // every child. This keeps stable database identities for unchanged entries.
-        var remaining = ScheduleTimes.ToList();
+        // ScheduleTime rows are configuration children, not durable business
+        // records. Replace the collection as a unit so EF Core only issues
+        // DELETEs for the old rows and INSERTs for the new rows. Updating the
+        // ExpectedTime of an existing child can produce stale UPDATE statements
+        // when the aggregate has been reconciled in the same DbContext.
+        foreach (var existing in ScheduleTimes.ToArray())
+            ScheduleTimes.Remove(existing);
 
         foreach (var time in values)
-        {
-            var existing = remaining.FirstOrDefault(x => x.ExpectedTime == time);
-            if (existing is not null)
-            {
-                remaining.Remove(existing);
-                continue;
-            }
-
-            var reusable = remaining.FirstOrDefault();
-            if (reusable is not null)
-            {
-                reusable.ChangeExpectedTime(time);
-                remaining.Remove(reusable);
-            }
-            else
-            {
-                ScheduleTimes.Add(new ScheduleTime(Id, time));
-            }
-        }
-
-        foreach (var obsolete in remaining)
-            ScheduleTimes.Remove(obsolete);
+            ScheduleTimes.Add(new ScheduleTime(Id, time));
     }
 
     public void SetEnabled(bool enabled) => IsEnabled = enabled;
