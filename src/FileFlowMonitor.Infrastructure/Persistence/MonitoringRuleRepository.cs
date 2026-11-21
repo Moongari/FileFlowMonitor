@@ -31,6 +31,25 @@ public sealed class MonitoringRuleRepository(FileFlowDbContext dbContext) : IMon
         return dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task CancelFutureExpectedFilesAsync(
+        Guid ruleId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    {
+        // Load by rule id only: SQLite DateTimeOffset range comparisons are not portable.
+        var expected = await dbContext.ExpectedFiles
+            .Where(x => x.MonitoringRuleId == ruleId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var item in expected)
+        {
+            if (item.ExpectedAtUtc > nowUtc &&
+                item.Status is FileFlowMonitor.Domain.Enums.ExpectedFileStatus.Scheduled
+                    or FileFlowMonitor.Domain.Enums.ExpectedFileStatus.Waiting)
+            {
+                item.Cancel();
+            }
+        }
+    }
+
     public async Task DeleteAsync(MonitoringRule rule, CancellationToken cancellationToken = default)
     {
         dbContext.MonitoringRules.Remove(rule);
