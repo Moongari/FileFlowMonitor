@@ -22,6 +22,8 @@ public sealed class FileFlowDbContext(DbContextOptions<FileFlowDbContext> option
             entity.Property(x => x.TimeZoneId).HasMaxLength(100).IsRequired();
             entity.Ignore(x => x.ExpectedFileNames);
             entity.Ignore(x => x.AllowedExtensions);
+            entity.Property<string>("_expectedFileNamesJson").HasColumnName("ExpectedFileNamesJson").IsRequired();
+            entity.Property<string>("_allowedExtensionsJson").HasColumnName("AllowedExtensionsJson").IsRequired();
             entity.HasMany(x => x.ScheduleTimes).WithOne().HasForeignKey(x => x.MonitoringRuleId).OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<ScheduleTime>().HasKey(x => x.Id);
