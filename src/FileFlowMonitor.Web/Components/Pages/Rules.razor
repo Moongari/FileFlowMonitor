@@ -55,10 +55,10 @@ else {
  private void ShowEdit(RuleView rule){
    _editingId=rule.Id;_showForm=true;_message=null;
    _form=new RuleForm { Name=rule.Name, FolderPath=rule.FolderPath, MatchingMode=rule.MatchingMode,
-     FileNamePattern=rule.FileNamePattern??\"\", ExpectedCount=rule.ExpectedCount,
-     ExpectedFileNamesText=string.Join(\", \",rule.ExpectedFileNames),
-     AllowedExtensionsText=string.Join(\", \",rule.AllowedExtensions),
-     ScheduleTimesText=string.Join(\", \",rule.ScheduleTimes.Select(x=>x[..5])),
+     FileNamePattern=rule.FileNamePattern??"", ExpectedCount=rule.ExpectedCount,
+     ExpectedFileNamesText=string.Join(", ",rule.ExpectedFileNames),
+     AllowedExtensionsText=string.Join(", ",rule.AllowedExtensions),
+     ScheduleTimesText=string.Join(", ",rule.ScheduleTimes.Select(x=>x[..5])),
      Days=rule.Days,TimeZoneId=rule.TimeZoneId,GracePeriodMinutes=rule.GracePeriodMinutes,
      StabilityPeriodSeconds=rule.StabilityPeriodSeconds };
  }
