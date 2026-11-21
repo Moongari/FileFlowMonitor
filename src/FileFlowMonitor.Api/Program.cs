@@ -22,6 +22,14 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+// Le MVP initialise le schéma SQLite au premier démarrage. Lorsque des migrations
+// EF Core seront introduites, ce bloc sera remplacé par Database.MigrateAsync().
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<FileFlowDbContext>();
+    await db.Database.EnsureCreatedAsync();
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
