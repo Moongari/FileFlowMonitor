@@ -45,6 +45,14 @@ public sealed class MonitoringEngineTests
             await using (var db = new FileFlowDbContext(options))
                 await new MonitoringEngineCycle(db, new ExpectedFilePlanner()).ExecuteAsync();
 
+            // Verify the first cycle persisted today's and tomorrow's occurrences.
+            await using (var check = new FileFlowDbContext(options))
+            {
+                var persisted = await check.ExpectedFiles.Where(x => x.MonitoringRuleId == ruleId).ToListAsync();
+                Assert.Equal(2, persisted.Count);
+                Assert.Equal(2, persisted.Select(x => x.ExpectedAtUtc.UtcDateTime.Ticks).Distinct().Count());
+            }
+
             // A subsequent cycle confirms stable metadata and links the file to its expectation.
             await using (var db = new FileFlowDbContext(options))
                 await new MonitoringEngineCycle(db, new ExpectedFilePlanner()).ExecuteAsync();
