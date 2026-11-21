@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
@@ -95,7 +94,6 @@ public sealed class MonitoringRuleApiTests
             {
                 services.RemoveAll<FileFlowDbContext>();
                 services.RemoveAll<DbContextOptions<FileFlowDbContext>>();
-                services.RemoveAll<IDbContextOptionsConfiguration<FileFlowDbContext>>();
                 services.AddSingleton(_connection);
                 services.AddDbContext<FileFlowDbContext>(options => options.UseSqlite(_connection));
             });
