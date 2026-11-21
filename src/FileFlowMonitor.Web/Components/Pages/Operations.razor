@@ -1,0 +1,47 @@
+@page "/operations"
+@inject IHttpClientFactory ClientFactory
+<PageTitle>Fichiers et incidents | FileFlow Monitor</PageTitle>
+<div class="page-heading"><div><div class="eyebrow">ACTIVITÉ OPÉRATIONNELLE</div><h1>Fichiers & incidents</h1><p>Suivez les réceptions attendues, les fichiers détectés et les anomalies.</p></div><button class="button-secondary" @onclick="LoadAsync">↻ Actualiser</button></div>
+<div class="tabs"><button class="@TabClass("expected")" @onclick="() => Select("expected")">Fichiers attendus</button><button class="@TabClass("received")" @onclick="() => Select("received")">Fichiers détectés</button><button class="@TabClass("incidents")" @onclick="() => Select("incidents")">Incidents</button><button class="@TabClass("executions")" @onclick="() => Select("executions")">Cycles moteur</button></div>
+@if (!string.IsNullOrEmpty(_error)){<div class="alert alert-error">@_error</div>}
+<section class="panel">
+<div class="panel-heading"><div><h2>@TabTitle</h2><p>@TabDescription</p></div>
+@if(_tab=="expected"){<input class="date-filter" type="date" @bind="_date" @bind:after="LoadAsync" />}
+</div>
+@if(_loading){<div class="loading-panel">Chargement des données…</div>}
+else if(_rows.Count==0){<div class="empty-state"><div class="empty-icon">✓</div><h3>Aucune donnée à afficher</h3><p>Les éléments apparaîtront dès que le moteur aura effectué ses premières réconciliations.</p></div>}
+else{
+<div class="table-wrap"><table><thead><tr>@foreach(var col in _columns){<th>@col</th>}</tr></thead><tbody>
+@foreach(var row in _rows){<tr>@foreach(var col in _keys){<td>@Cell(row,col)</td>}</tr>}
+</tbody></table></div>}
+</section>
+@code{
+ private string _tab="expected"; private string _date=DateTime.Today.ToString("yyyy-MM-dd"); private bool _loading=true; private string? _error; private List<JsonElement> _rows=[]; private string[] _columns=[]; private string[] _keys=[];
+ private string TabTitle=>_tab switch{"expected"=>"Fichiers attendus","received"=>"Fichiers détectés","incidents"=>"Incidents de surveillance",_=>"Historique des cycles"};
+ private string TabDescription=>_tab switch{"expected"=>"Échéances calculées à partir des règles et de leurs horaires.","received"=>"Fichiers observés dans les dossiers surveillés, après détection.","incidents"=>"Incidents ouverts et résolus : dossier inaccessible, erreur de traitement, etc.",_=>"Exécutions périodiques du moteur de réconciliation."};
+ protected override async Task OnInitializedAsync()=>await LoadAsync();
+ private string TabClass(string t)=>_tab==t?"tab active":"tab";
+ private async Task Select(string t){_tab=t;await LoadAsync();}
+ private async Task LoadAsync(){
+  _loading=true;_error=null;
+  try{
+   var api=ClientFactory.CreateClient("FileFlowApi");
+   var url=_tab switch{"expected"=>$"api/monitoring/expected-files?date={_date}","received"=>"api/monitoring/received-files?limit=200","incidents"=>"api/monitoring/incidents?limit=200","executions"=>"api/monitoring/executions?limit=200",_=>""};
+   var doc=await api.GetFromJsonAsync<JsonDocument>(url);_rows=doc?.RootElement.EnumerateArray().Select(x=>x.Clone()).ToList()??[];
+   (_keys,_columns)=_tab switch{
+    "expected"=>(["expectedFileName","expectedAtUtc","deadlineAtUtc","receivedAtUtc","status"],["Fichier attendu","Échéance","Limite de grâce","Réception","Statut"]),
+    "received"=>(["fileName","fullPath","sizeBytes","detectedAtUtc","stableAtUtc"],["Fichier","Chemin complet","Taille (octets)","Détecté le","Stable depuis"]),
+    "incidents"=>(["code","message","occurredAtUtc","isResolved","resolvedAtUtc"],["Code","Description","Détecté le","Résolu","Résolu le"]),
+    _=>(["startedAtUtc","completedAtUtc","filesDiscovered","error"],["Démarré le","Terminé le","Fichiers détectés","Erreur"])};
+  }catch(Exception ex){_error="Impossible de récupérer les données : "+ex.Message;_rows=[];}
+  finally{_loading=false;}
+ }
+ private string Cell(JsonElement row,string key){
+  if(!row.TryGetProperty(key,out var v)||v.ValueKind==JsonValueKind.Null)return "—";
+  if(key.EndsWith("AtUtc")&&v.ValueKind==JsonValueKind.String&&v.TryGetDateTimeOffset(out var dt))return dt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss");
+  if(key=="sizeBytes"&&v.TryGetInt64(out var bytes))return bytes.ToString("N0");
+  if(key=="isResolved")return v.GetBoolean()?"Oui":"Non";
+  if(key=="status"&&v.ValueKind==JsonValueKind.String)return v.GetString() switch{"Received"=>"Reçu","Late"=>"En retard","Missing"=>"Manquant","Waiting"=>"En attente","Scheduled"=>"Planifié","Invalid"=>"Invalide","Duplicate"=>"Doublon",_=>v.GetString()??"—"};
+  return v.ToString();
+ }
+}
