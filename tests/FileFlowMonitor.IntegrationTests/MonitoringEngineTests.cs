@@ -30,7 +30,8 @@ public sealed class MonitoringEngineTests
             {
                 await setup.Database.EnsureCreatedAsync();
                 var service = new MonitoringRuleService(new MonitoringRuleRepository(setup));
-                var schedule = TimeOnly.FromDateTime(DateTime.UtcNow.AddMinutes(-1));
+                var utcNow = DateTime.UtcNow;
+                var schedule = new TimeOnly(utcNow.Hour, utcNow.Minute, 0);
                 var rule = await service.CreateAsync(new MonitoringRuleConfiguration(
                     "Citi test feed", folder, MatchingMode.ExactName, null, 1,
                     ["TRADES.csv"], ["csv"], [schedule], WeekDays.EveryDay,
