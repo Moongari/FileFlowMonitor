@@ -53,7 +53,7 @@ public sealed class MonitoringRuleCrudTests
 
             Assert.NotNull(loaded);
             Assert.Equal("Citi inbound", loaded.Name);
-            Assert.Equal(new[] { "trades.csv", "positions.csv" }, loaded.ExpectedFileNames.OrderBy(x => x).ToArray());
+            Assert.Equal(new[] { "positions.csv", "trades.csv" }, loaded.ExpectedFileNames.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray());
             Assert.Equal(["csv", "pdf"], loaded.AllowedExtensions.OrderBy(x => x).ToArray());
             Assert.Equal(2, loaded.ScheduleTimes.Count);
 
