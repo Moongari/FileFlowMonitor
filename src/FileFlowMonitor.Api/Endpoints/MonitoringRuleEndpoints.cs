@@ -99,6 +99,7 @@ public static class MonitoringRuleEndpoints
               "gracePeriodMinutes": 20
             }
             Les autres champs obligatoires de la règle doivent également être fournis.
+            Les occurrences futures de l'ancienne configuration sont annulées ; le moteur planifie les nouvelles au cycle suivant.
             """)
         .Produces<MonitoringRuleResponse>(StatusCodes.Status200OK).Produces(StatusCodes.Status404NotFound).ProducesValidationProblem();
 
@@ -114,6 +115,7 @@ public static class MonitoringRuleEndpoints
             Exemple de corps JSON pour suspendre temporairement la surveillance :
             { "isEnabled": false }
             Envoyer { "isEnabled": true } pour reprendre la surveillance.
+            Les occurrences futures sont annulées à la désactivation et replanifiées à la réactivation si la configuration est inchangée.
             """)
         .Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status404NotFound);
 
@@ -124,7 +126,7 @@ public static class MonitoringRuleEndpoints
             return deleted ? Results.NoContent() : Results.NotFound();
         })
         .WithName("DeleteMonitoringRule").WithSummary("Supprimer une règle")
-        .WithDescription("Supprime définitivement la règle et ses horaires associés. Exemple : DELETE /api/monitoring-rules/{id}. Retourne 404 si elle n'existe pas.")
+        .WithDescription("Supprime définitivement la règle et ses horaires associés. Les attentes futures sont conservées dans l'historique avec le statut Cancelled. Exemple : DELETE /api/monitoring-rules/{id}. Retourne 404 si elle n'existe pas.")
         .Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status404NotFound);
 
         return endpoints;
