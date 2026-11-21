@@ -39,6 +39,7 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                     item.RefreshStatus(now);
 
                 execution.Complete(DateTimeOffset.UtcNow, discovered);
+                await ResolveIncidentAsync(rule.Id, "MONITORING_EXECUTION_FAILED", DateTimeOffset.UtcNow, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
