@@ -53,9 +53,16 @@ public sealed class MonitoringEngineTests
                 var executions = await verify.MonitoringExecutions.Where(x => x.MonitoringRuleId == ruleId).ToListAsync();
                 Assert.Equal(2, executions.Count);
                 Assert.All(executions, x => Assert.Null(x.Error));
-                var expected = await verify.ExpectedFiles.SingleAsync(x => x.MonitoringRuleId == ruleId);
+                var expectedFiles = await verify.ExpectedFiles
+                    .Where(x => x.MonitoringRuleId == ruleId)
+                    .OrderBy(x => x.ExpectedAtUtc)
+                    .ToListAsync();
+                var expected = Assert.Single(expectedFiles.Where(x => x.ExpectedAtUtc <= DateTimeOffset.UtcNow));
+                var nextOccurrence = Assert.Single(expectedFiles.Where(x => x.ExpectedAtUtc > DateTimeOffset.UtcNow));
                 var received = await verify.ReceivedFiles.SingleAsync(x => x.MonitoringRuleId == ruleId);
+                Assert.Equal(2, expectedFiles.Count);
                 Assert.Equal(ExpectedFileStatus.Received, expected.Status);
+                Assert.Equal(ExpectedFileStatus.Scheduled, nextOccurrence.Status);
                 Assert.Equal(received.Id, expected.ReceivedFileId);
                 Assert.NotNull(received.StableAtUtc);
                 Assert.Equal(2, await verify.MonitoringExecutions.CountAsync(x => x.MonitoringRuleId == ruleId));
