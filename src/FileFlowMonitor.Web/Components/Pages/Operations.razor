@@ -40,9 +40,14 @@ else{
    var body=await response.Content.ReadAsStringAsync();
    if(!response.IsSuccessStatusCode)throw new InvalidOperationException($"API {(int)response.StatusCode}: {body}");
    using var doc=JsonDocument.Parse(body);
-   var completed=doc.RootElement.TryGetProperty("completedRules",out var count)?count.GetInt32():0;
-   var failed=doc.RootElement.TryGetProperty("failedRules",out var errors)?errors.GetInt32():0;
-   _success=$"Réconciliation terminée : {completed} règle(s) traitée(s), {failed} erreur(s). Les données affichées sont actualisées.";
+   var root=doc.RootElement;
+   var completed=root.TryGetProperty("completedRules",out var count)?count.GetInt32():0;
+   var failed=root.TryGetProperty("failedRules",out var errors)?errors.GetInt32():0;
+   var detected=root.TryGetProperty("filesDetected",out var detectedValue)?detectedValue.GetInt32():0;
+   var expected=root.TryGetProperty("expectedOccurrences",out var expectedValue)?expectedValue.GetInt32():0;
+   var matched=root.TryGetProperty("matchedOccurrences",out var matchedValue)?matchedValue.GetInt32():0;
+   var missing=root.TryGetProperty("missingOccurrences",out var missingValue)?missingValue.GetInt32():0;
+   _success=$"Réconciliation terminée : {completed} règle(s), {detected} fichier(s) détecté(s), {matched}/{expected} occurrence(s) rapprochée(s), {missing} manquante(s), {failed} erreur(s).";
    await LoadAsync();
   }catch(Exception ex){_error="Échec de la réconciliation forcée : "+ex.Message;}
   finally{_reconciling=false;}
