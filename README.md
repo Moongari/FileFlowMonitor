@@ -6,14 +6,14 @@ Application de supervision des dépôts de fichiers entrants : répertoires loca
 
 Détecter de façon fiable les fichiers attendus, identifier précisément les fichiers manquants ou en retard et fournir un tableau de bord avec historique et alertes.
 
-**Principe clé :** les règles définissent ce qui est attendu ; les événements du système de fichiers accélèrent la détection, tandis qu'un scan périodique garantit la réconciliation.
+**Principe clé :** les règles définissent ce qui est attendu ; le scan périodique est la source de vérité pour la réconciliation. L'accélération par FileSystemWatcher pourra être ajoutée ensuite.
 
 ## Périmètre fonctionnel
 
 - Plusieurs dossiers surveillés simultanément (locaux et UNC).
-- Règles indépendantes par source : horaires, jours, délai de grâce, noms exacts ou modèles, groupes et quantités attendues.
+- Règles indépendantes par source : horaires, jours, délai de grâce, noms exacts ou modèles de nommage. Les modes Motif et Quantité sont prévus pour une évolution ultérieure.
 - Formats configurables : CSV, XLS/XLSX, PDF, XML, JSON, TXT, DAT, ZIP, etc.
-- États : planifié, en attente, reçu, en retard, manquant, invalide, doublon, dossier indisponible.
+- États : planifié, en attente, reçu, en retard, manquant, invalide, annulé et dossier indisponible. La qualification des doublons est prévue dans un lot ultérieur.
 - Vérification de stabilité avant traitement.
 - Tableau de bord Blazor avec indicateurs, règles, fichiers attendus/reçus, incidents et historique des cycles. Actualisation manuelle dans cette première version.
 - Surveillance en lecture seule : aucun déplacement ou effacement des fichiers entrants.
@@ -73,7 +73,7 @@ Documentation : [Architecture](docs/ARCHITECTURE.md), [Conception](docs/DESIGN.m
 
 Branche de travail : `feature/monitoring-engine`. La branche `main` reste intacte jusqu'à validation explicite.
 
-En cours : moteur de réconciliation périodique, génération des occurrences attendues, détection et stabilisation des fichiers, endpoints de supervision, gestion des règles dans Blazor, tableau de bord et vues opérationnelles. Swagger documente les routes et inclut un exemple Citi sur la création d'une règle. La validation CI complète sur les deux frameworks reste obligatoire avant intégration dans `main`.
+Implémenté sur cette branche : moteur de réconciliation périodique, génération des occurrences du jour et du lendemain, détection et stabilisation des fichiers, incidents de dossier, annulation des attentes futures lors d'une modification de règle, endpoints de supervision, gestion des règles dans Blazor, tableau de bord et vues opérationnelles. Swagger documente les opérations avec exemples JSON. Les modes Motif/Quantité, les doublons et l'accélération FileSystemWatcher restent à développer. La validation CI complète sur les deux frameworks reste obligatoire avant intégration dans `main`.
 
 
 ## Lancer l'application en local
