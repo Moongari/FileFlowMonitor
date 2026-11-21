@@ -32,7 +32,7 @@ public sealed class ExpectedFile
 
     public void RefreshStatus(DateTimeOffset nowUtc)
     {
-        if (Status is ExpectedFileStatus.Received or ExpectedFileStatus.Late or ExpectedFileStatus.Invalid or ExpectedFileStatus.Duplicate) return;
+        if (Status is ExpectedFileStatus.Received or ExpectedFileStatus.Late or ExpectedFileStatus.Invalid or ExpectedFileStatus.Duplicate or ExpectedFileStatus.Cancelled) return;
         Status = nowUtc < ExpectedAtUtc ? ExpectedFileStatus.Scheduled
             : nowUtc <= DeadlineAtUtc ? ExpectedFileStatus.Waiting
             : ExpectedFileStatus.Missing;
@@ -47,4 +47,6 @@ public sealed class ExpectedFile
     }
 
     public void MarkInvalid() => Status = ExpectedFileStatus.Invalid;
+
+    public void Cancel() => Status = ExpectedFileStatus.Cancelled;
 }
