@@ -52,6 +52,13 @@ flowchart TB
 - **Web** : interface Blazor et tableau de bord.
 - **UnitTests / IntegrationTests** : règles métier, moteur, persistance et scénarios de bout en bout.
 
+## API REST et documentation
+
+- Les endpoints HTTP sont regroupés sous `/api/monitoring-rules` et délèguent les opérations au `MonitoringRuleService`.
+- Les contrats HTTP (`MonitoringRuleRequest` / `MonitoringRuleResponse`) isolent l'API des entités Domain.
+- Swagger UI est exposé en environnement Development à `/swagger` ; le document OpenAPI est disponible à `/swagger/v1/swagger.json`.
+- Les résumés/descriptions des endpoints et les commentaires XML des contrats alimentent la documentation OpenAPI. Le détail des routes et des payloads figure dans `docs/API.md`.
+
 ## Principes de fiabilité
 
 1. Le watcher n'est jamais la seule source de vérité : un scan périodique rattrape les événements perdus.
