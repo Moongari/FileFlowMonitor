@@ -326,9 +326,9 @@ public sealed class MonitoringEngineTests
 
         try
         {
-            var now = DateTimeOffset.UtcNow;
-            var dateToken = now.ToString("yyyyMMdd");
-            var schedule = new TimeOnly(now.Hour, now.Minute);
+            var scheduledAt = DateTimeOffset.UtcNow.AddMinutes(-2);
+            var dateToken = scheduledAt.ToString("yyyyMMdd");
+            var schedule = new TimeOnly(scheduledAt.Hour, scheduledAt.Minute);
             var fileName = $"Trade1_{dateToken}_{schedule:HHmm}0.csv";
             await File.WriteAllTextAsync(Path.Combine(folder, fileName), "tradeId,amount\n1,100");
 
@@ -349,8 +349,9 @@ public sealed class MonitoringEngineTests
 
             await using (var verify = new FileFlowDbContext(options))
             {
-                var expected = await verify.ExpectedFiles.SingleAsync(x =>
-                    x.MonitoringRuleId == ruleId && x.ExpectedAtUtc <= DateTimeOffset.UtcNow);
+                var expected = Assert.Single((await verify.ExpectedFiles
+                    .Where(x => x.MonitoringRuleId == ruleId)
+                    .ToListAsync()).Where(x => x.ExpectedAtUtc <= DateTimeOffset.UtcNow));
                 Assert.Equal(fileName.Replace($"{dateToken}_{schedule:HHmm}0", $"{dateToken}_{schedule:HHmmss}"),
                     expected.ExpectedFileName);
                 Assert.Equal(ExpectedFileStatus.Received, expected.Status);
