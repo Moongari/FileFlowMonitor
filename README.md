@@ -44,13 +44,13 @@ tests/
 docs/
 ```
 
-Documentation : [Architecture](docs/ARCHITECTURE.md), [Conception](docs/DESIGN.md), [Roadmap](docs/ROADMAP.md).
+Documentation : [Architecture](docs/ARCHITECTURE.md), [Conception](docs/DESIGN.md), [API REST et Swagger](docs/API.md), [Roadmap](docs/ROADMAP.md).
 
 ## État du développement
 
 Branche de travail : `feature/initial-architecture`. La branche `main` reste intacte jusqu'à validation explicite.
 
-Socle initial en place : solution et projets .NET, premières entités métier, planification des fichiers attendus, persistance EF Core SQLite, endpoints de santé et premiers tests unitaires. Le workflow GitHub Actions compile et exécute les tests avec .NET 10.
+Socle initial en place : solution et projets .NET, premières entités métier, planification des fichiers attendus, persistance EF Core SQLite, CRUD des règles via API REST, documentation Swagger et tests unitaires / d'intégration. Le moteur de surveillance et l'interface Blazor restent à développer. Le workflow GitHub Actions compile et exécute les tests avec .NET 10.
 
 ## Scénario de référence
 
