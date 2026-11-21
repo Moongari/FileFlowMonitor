@@ -105,9 +105,11 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
             if (!info.Exists) continue;
 
             var lastWrite = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero);
-            var existing = await db.ReceivedFiles.FirstOrDefaultAsync(x =>
-                x.MonitoringRuleId == rule.Id && x.FullPath == info.FullName &&
-                x.LastWriteTimeUtc == lastWrite, cancellationToken);
+            var fileVersions = await db.ReceivedFiles
+                .Where(x => x.MonitoringRuleId == rule.Id && x.FullPath == info.FullName)
+                .ToListAsync(cancellationToken);
+            var existing = fileVersions.FirstOrDefault(x =>
+                x.LastWriteTimeUtc.UtcDateTime.Ticks == lastWrite.UtcDateTime.Ticks);
 
             if (existing is null)
             {
