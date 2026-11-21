@@ -132,20 +132,31 @@ public sealed class MonitoringRuleCrudTests
         await using (var db = new FileFlowDbContext(options))
         {
             var service = new MonitoringRuleService(new MonitoringRuleRepository(db));
-            var updated = await service.UpdateAsync(ruleId, new MonitoringRuleConfiguration(
-                "Citi - intervalle",
-                @"D:\\FileFlow\\Citi",
-                MatchingMode.FileNameTemplate,
-                "trade1_{DATE}_{TIME}.csv;trade2_{DATE}_{TIME}.csv",
-                1,
-                [],
-                ["csv"],
-                expectedTimes,
-                WeekDays.Weekdays,
-                TimeZoneInfo.Utc.Id,
-                15,
-                5,
-                true));
+            FileFlowMonitor.Domain.Entities.MonitoringRule? updated;
+            try
+            {
+                updated = await service.UpdateAsync(ruleId, new MonitoringRuleConfiguration(
+                    "Citi - intervalle",
+                    @"D:\\FileFlow\\Citi",
+                    MatchingMode.FileNameTemplate,
+                    "trade1_{DATE}_{TIME}.csv;trade2_{DATE}_{TIME}.csv",
+                    1,
+                    [],
+                    ["csv"],
+                    expectedTimes,
+                    WeekDays.Weekdays,
+                    TimeZoneInfo.Utc.Id,
+                    15,
+                    5,
+                    true));
+            }
+            catch (DbUpdateConcurrencyException exception)
+            {
+                var affected = string.Join("; ", exception.Entries.Select(entry =>
+                    $"{entry.Metadata.ClrType.Name} ({entry.State})"));
+                throw new Xunit.Sdk.XunitException(
+                    $"Concurrency conflict affected EF entries: {affected}");
+            }
 
             Assert.NotNull(updated);
             Assert.Equal(25, updated.ScheduleTimes.Count);
