@@ -28,7 +28,7 @@ Exemples de noms générés avec le format par défaut HHmm0 :
 - Trade1_20261121_23000.csv
 - Trade2_20261121_23000.csv
 
-Le format HHmmss produit 080000 et correspond au jeton {TIME} actuellement implémenté dans le moteur :
+Le moteur accepte désormais les deux formats pour le jeton {TIME} : HHmm0 (08000, format utilisé par défaut par ce script) et HHmmss (080000). Le format canonique affiché dans la liste des attentes reste HHmmss ; le rapprochement reconnaît les deux variantes sans créer de doublon.
 
     .\scripts\MonitoringTest\Generate-TestFiles.ps1 -Date "2026-11-21" -TimeFormat HHmmss
 
@@ -94,6 +94,6 @@ Attention : le nettoyage supprime les fichiers correspondants du dossier de pré
 ## Remarques
 
 - HHmm0 produit 08000 pour 08h00, comme dans l'exemple demandé.
-- HHmmss produit 080000 et correspond au jeton {TIME} actuellement implémenté.
-- Les noms Trade1 et Trade2 doivent correspondre exactement aux modèles de nommage configurés dans la règle.
+- HHmm0 produit 08000 ; HHmmss produit 080000. Les deux formats sont reconnus par le rapprochement du jeton {TIME}.
+- Les noms Trade1 et Trade2 doivent correspondre aux modèles de nommage configurés dans la règle. La casse est ignorée.
 - Les fichiers sont de petits CSV synthétiques, sans données métier réelles.
