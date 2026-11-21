@@ -49,7 +49,7 @@ public sealed class ExpectedFilePlanner
             !string.IsNullOrWhiteSpace(rule.FileNamePattern))
         {
             var templates = rule.FileNamePattern
-                .Split(['\\r', '\\n', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                .Split(new[] { '\r', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             return templates.Select(template => template
                 .Replace("{DATE}", date.ToString("yyyyMMdd"), StringComparison.OrdinalIgnoreCase)
