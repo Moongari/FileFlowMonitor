@@ -64,12 +64,11 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
 
         // Load persisted occurrences once, then keep the in-memory key set updated
         // while planning both dates. This also deduplicates within a single cycle.
-        var existing = await db.ExpectedFiles.AsNoTracking()
+        var existing = await db.ExpectedFiles
             .Where(x => x.MonitoringRuleId == rule.Id)
             .ToListAsync(cancellationToken);
-        var existingKeys = existing
-            .Select(x => (x.ExpectedAtUtc.UtcDateTime.Ticks, x.ExpectedFileName.ToUpperInvariant()))
-            .ToHashSet();
+        var existingByKey = existing.ToDictionary(
+            x => (x.ExpectedAtUtc.UtcDateTime.Ticks, x.ExpectedFileName.ToUpperInvariant()));
 
         foreach (var date in new[] { localDate, localDate.AddDays(1) })
         {
@@ -77,8 +76,15 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
             foreach (var item in planned)
             {
                 var key = (item.ExpectedAtUtc.UtcDateTime.Ticks, item.ExpectedFileName.ToUpperInvariant());
-                if (existingKeys.Add(key))
-                    db.ExpectedFiles.Add(item);
+                if (existingByKey.TryGetValue(key, out var existingOccurrence))
+                {
+                    // Re-enabling a rule can reactivate the same future occurrence.
+                    existingOccurrence.Reschedule();
+                    continue;
+                }
+
+                db.ExpectedFiles.Add(item);
+                existingByKey.Add(key, item);
             }
         }
     }
