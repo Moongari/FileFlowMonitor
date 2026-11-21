@@ -1,7 +1,8 @@
 @page "/operations"
+@implements IAsyncDisposable
 @inject IHttpClientFactory ClientFactory
 <PageTitle>Fichiers et incidents | FileFlow Monitor</PageTitle>
-<div class="page-heading"><div><div class="eyebrow">ACTIVITÉ OPÉRATIONNELLE</div><h1>Fichiers & incidents</h1><p>Suivez les réceptions attendues, les fichiers détectés et les anomalies.</p></div><button class="button-secondary" @onclick="LoadAsync">↻ Actualiser</button></div>
+<div class="page-heading"><div><div class="eyebrow">ACTIVITÉ OPÉRATIONNELLE</div><h1>Fichiers & incidents</h1><p>Suivez les réceptions attendues, les fichiers détectés et les anomalies. Actualisation automatique toutes les 30 secondes.</p></div><button class="button-secondary" @onclick="LoadAsync">↻ Actualiser</button></div>
 <div class="tabs"><button class='@TabClass("expected")' @onclick='() => Select("expected")'>Fichiers attendus</button><button class='@TabClass("received")' @onclick='() => Select("received")'>Fichiers détectés</button><button class='@TabClass("incidents")' @onclick='() => Select("incidents")'>Incidents</button><button class='@TabClass("executions")' @onclick='() => Select("executions")'>Cycles moteur</button></div>
 @if (!string.IsNullOrEmpty(_error)){<div class="alert alert-error">@_error</div>}
 <section class="panel">
@@ -19,7 +20,14 @@ else{
  private string _tab="expected"; private DateTime _date=DateTime.Today; private bool _loading=true; private string? _error; private List<JsonElement> _rows=[]; private string[] _columns=[]; private string[] _keys=[];
  private string TabTitle=>_tab switch{"expected"=>"Fichiers attendus","received"=>"Fichiers détectés","incidents"=>"Incidents de surveillance",_=>"Historique des cycles"};
  private string TabDescription=>_tab switch{"expected"=>"Échéances calculées à partir des règles et de leurs horaires.","received"=>"Fichiers observés dans les dossiers surveillés, après détection.","incidents"=>"Incidents ouverts et résolus : dossier inaccessible, erreur de traitement, etc.",_=>"Exécutions périodiques du moteur de réconciliation."};
- protected override async Task OnInitializedAsync()=>await LoadAsync();
+ private readonly CancellationTokenSource _refreshCancellation = new();
+ private Task _refreshLoop = Task.CompletedTask;
+ protected override async Task OnInitializedAsync(){await LoadAsync();_refreshLoop=RefreshLoopAsync(_refreshCancellation.Token);}
+ private async Task RefreshLoopAsync(CancellationToken cancellationToken){
+  try{using var timer=new PeriodicTimer(TimeSpan.FromSeconds(30));while(await timer.WaitForNextTickAsync(cancellationToken))await InvokeAsync(LoadAsync);}
+  catch(OperationCanceledException) when(cancellationToken.IsCancellationRequested){}
+ }
+ public async ValueTask DisposeAsync(){_refreshCancellation.Cancel();await _refreshLoop;_refreshCancellation.Dispose();}
  private string TabClass(string t)=>_tab==t?"tab active":"tab";
  private async Task Select(string t){_tab=t;await LoadAsync();}
  private async Task LoadAsync(){
