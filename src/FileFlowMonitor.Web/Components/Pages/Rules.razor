@@ -21,7 +21,20 @@
 <label>Modèle de nommage<input @bind="_form.FileNamePattern" placeholder="trade1_{DATE}_{TIME}.csv; trade2_{DATE}_{TIME}.csv" /></label>
 }
 <label>Extensions autorisées<input @bind="_form.AllowedExtensionsText" placeholder="csv, xlsx, pdf" /></label>
-<label>Horaires locaux<input @bind="_form.ScheduleTimesText" placeholder="08:00, 12:00, 16:00" /></label>
+<label class="schedule-manual">Horaires locaux<input @bind="_form.ScheduleTimesText" placeholder="08:00, 12:00, 16:00" /><small class="sub-cell">Vous pouvez conserver une liste manuelle ou utiliser le générateur ci-dessous.</small></label>
+<div class="schedule-generator">
+<div class="schedule-generator-heading"><strong>Générer automatiquement les horaires</strong><small>Définissez une plage et un intervalle. Les bornes sont incluses.</small></div>
+<div class="schedule-generator-fields">
+<label>De<input type="time" @bind="_form.ScheduleStartTime" /></label>
+<label>À<input type="time" @bind="_form.ScheduleEndTime" /></label>
+<label>Intervalle (minutes)<input type="number" min="1" max="1440" @bind="_form.ScheduleIntervalMinutes" /></label>
+<button type="button" class="button-secondary button-small" @onclick="GenerateScheduleTimes">Générer les horaires</button>
+</div>
+@if (!string.IsNullOrWhiteSpace(_scheduleGeneratorMessage))
+{
+<div class="form-help">@_scheduleGeneratorMessage</div>
+}
+</div>
 <label>Jours de surveillance<select @bind="_form.Days"><option value="31">Lundi au vendredi</option><option value="127">Tous les jours</option><option value="96">Samedi et dimanche</option></select></label>
 <label>Fuseau horaire<input @bind="_form.TimeZoneId" /></label>
 <label>Délai de grâce (minutes)<input type="number" min="0" max="1440" @bind="_form.GracePeriodMinutes" /></label>
@@ -52,7 +65,7 @@ else {
  private bool _loading = true, _showForm, _saving;
  private Guid? _editingId;
  private RuleView? _pendingDelete;
- private string? _error, _message;
+ private string? _error, _message, _scheduleGeneratorMessage;
  protected override async Task OnInitializedAsync() => await LoadAsync();
  private HttpClient Api => ClientFactory.CreateClient("FileFlowApi");
  private async Task LoadAsync() { _loading=true; _error=null; try { _rules=await Api.GetFromJsonAsync<List<RuleView>>("api/monitoring-rules") ?? []; } catch(Exception ex){_error="Impossible de charger les règles : "+ex.Message;} finally{_loading=false;} }
@@ -67,7 +80,38 @@ else {
      Days=rule.Days,TimeZoneId=rule.TimeZoneId,GracePeriodMinutes=rule.GracePeriodMinutes,
      StabilityPeriodSeconds=rule.StabilityPeriodSeconds };
  }
- private void Cancel(){_showForm=false;_editingId=null;}
+ private void Cancel(){_showForm=false;_editingId=null;_scheduleGeneratorMessage=null;}
+ private void GenerateScheduleTimes()
+ {
+   _scheduleGeneratorMessage=null;
+   if(!TimeOnly.TryParse(_form.ScheduleStartTime,out var start) || !TimeOnly.TryParse(_form.ScheduleEndTime,out var end))
+   {
+     _scheduleGeneratorMessage="Veuillez renseigner une heure de début et une heure de fin valides.";
+     return;
+   }
+   if(_form.ScheduleIntervalMinutes<1 || _form.ScheduleIntervalMinutes>1440)
+   {
+     _scheduleGeneratorMessage="L'intervalle doit être compris entre 1 et 1 440 minutes.";
+     return;
+   }
+   if(end<start)
+   {
+     _scheduleGeneratorMessage="L'heure de fin doit être postérieure ou égale à l'heure de début. Pour une plage après minuit, créez une règle distincte.";
+     return;
+   }
+   var times=new List<string>();
+   for(var minutes=start.Hour*60+start.Minute; minutes<=end.Hour*60+end.Minute; minutes+=_form.ScheduleIntervalMinutes)
+   {
+     times.Add($"{minutes/60:00}:{minutes%60:00}");
+   }
+   if(times.Count==0)
+   {
+     _scheduleGeneratorMessage="Aucun horaire n'a été généré.";
+     return;
+   }
+   _form.ScheduleTimesText=string.Join(", ",times);
+   _scheduleGeneratorMessage=$"{times.Count} horaire(s) généré(s), de {times[0]} à {times[^1]}. La liste remplace les horaires précédents.";
+ }
  private async Task SaveAsync()
  {
    _saving=true;_error=null;
@@ -104,6 +148,6 @@ else {
    if(response.IsSuccessStatusCode){_message=$"Règle « {rule.Name} » supprimée.";await LoadAsync();}else{_error="Impossible de supprimer cette règle.";}
  }
  private static string MatchingLabel(int mode)=>mode switch{0=>"Noms exacts",1=>"Modèle",2=>"Motif",3=>"Quantité",_=>"Inconnu"};
- private sealed class RuleForm { public string Name{get;set;}=""; public string FolderPath{get;set;}=""; public int MatchingMode{get;set;} public string ExpectedFileNamesText{get;set;}=""; public string FileNamePattern{get;set;}=""; public int ExpectedCount{get;set;}=1; public string AllowedExtensionsText{get;set;}="csv"; public string ScheduleTimesText{get;set;}="08:00, 12:00"; public int Days{get;set;}=31; public string TimeZoneId{get;set;}="Europe/Paris"; public int GracePeriodMinutes{get;set;}=15; public int StabilityPeriodSeconds{get;set;}=5; }
+ private sealed class RuleForm { public string Name{get;set;}=""; public string FolderPath{get;set;}=""; public int MatchingMode{get;set;} public string ExpectedFileNamesText{get;set;}=""; public string FileNamePattern{get;set;}=""; public int ExpectedCount{get;set;}=1; public string AllowedExtensionsText{get;set;}="csv"; public string ScheduleTimesText{get;set;}="08:00, 12:00"; public string ScheduleStartTime{get;set;}="08:00"; public string ScheduleEndTime{get;set;}="23:00"; public int ScheduleIntervalMinutes{get;set;}=60; public int Days{get;set;}=31; public string TimeZoneId{get;set;}="Europe/Paris"; public int GracePeriodMinutes{get;set;}=15; public int StabilityPeriodSeconds{get;set;}=5; }
  private sealed class RuleView { public Guid Id{get;set;} public string Name{get;set;}=""; public string FolderPath{get;set;}=""; public int MatchingMode{get;set;} public int GracePeriodMinutes{get;set;} public int StabilityPeriodSeconds{get;set;} public int Days{get;set;} public int ExpectedCount{get;set;} public string? FileNamePattern{get;set;} public List<string> ExpectedFileNames{get;set;}=[]; public List<string> AllowedExtensions{get;set;}=[]; public string TimeZoneId{get;set;}=""; public bool IsEnabled{get;set;} public List<string> ScheduleTimes{get;set;}=[]; }
 }
