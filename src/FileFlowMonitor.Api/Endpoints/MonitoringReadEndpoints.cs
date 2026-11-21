@@ -29,7 +29,7 @@ public static class MonitoringReadEndpoints
             // consistently by all supported EF Core SQLite/provider versions.
             // Load the small execution history and apply the forced-cycle window in memory.
             var allExecutions = await db.MonitoringExecutions.AsNoTracking()
-                .OrderByDescending(x => x.StartedAtUtc).ToListAsync(ct);
+                .ToListAsync(ct);
             var executions = allExecutions
                 .Where(x => x.StartedAtUtc >= startedAt.AddSeconds(-1) &&
                     (!ruleId.HasValue || x.MonitoringRuleId == ruleId.Value))
