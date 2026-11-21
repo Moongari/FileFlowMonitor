@@ -12,12 +12,27 @@ namespace FileFlowMonitor.Infrastructure.Monitoring;
 /// </summary>
 public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlanner planner)
 {
-    public async Task ExecuteAsync(CancellationToken cancellationToken = default)
+    private static readonly SemaphoreSlim ExecutionGate = new(1, 1);
+
+    public async Task ExecuteAsync(CancellationToken cancellationToken = default, Guid? onlyRuleId = null)
+    {
+        await ExecutionGate.WaitAsync(cancellationToken);
+        try
+        {
+            await ExecuteCoreAsync(cancellationToken, onlyRuleId);
+        }
+        finally
+        {
+            ExecutionGate.Release();
+        }
+    }
+
+    private async Task ExecuteCoreAsync(CancellationToken cancellationToken, Guid? onlyRuleId)
     {
         var now = DateTimeOffset.UtcNow;
         var rules = await db.MonitoringRules
             .Include(x => x.ScheduleTimes)
-            .Where(x => x.IsEnabled)
+            .Where(x => x.IsEnabled && (!onlyRuleId.HasValue || x.Id == onlyRuleId.Value))
             .ToListAsync(cancellationToken);
 
         foreach (var rule in rules)
