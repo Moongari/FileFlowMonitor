@@ -20,7 +20,7 @@ public sealed class MonitoringRuleRequest
     /// <summary>Mode de reconnaissance des fichiers attendus.</summary>
     public MatchingMode MatchingMode { get; init; }
 
-    /// <summary>Motif ou modèle de nommage, requis pour les modes Pattern et FileNameTemplate.</summary>
+    /// <summary>Modèles de noms séparés par des points-virgules. Variables disponibles : {DATE} (yyyyMMdd), {YYYY}, {MM}, {DD}, {TIME} (HHmmss), {HH}, {MINUTES}, {SECONDS}. Chaque modèle est développé pour chaque horaire configuré.</summary>
     public string? FileNamePattern { get; init; }
 
     /// <summary>Nombre de fichiers attendu lorsque la règle fonctionne par quantité.</summary>
