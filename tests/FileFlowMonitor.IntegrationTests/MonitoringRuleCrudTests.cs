@@ -89,4 +89,99 @@ public sealed class MonitoringRuleCrudTests
             Assert.Null(await service.GetByIdAsync(id));
         }
     }
+
+    [Fact]
+    public async Task Updating_Existing_Rule_From_Two_To_TwentyFive_Schedule_Times_Persists_All_Times()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<FileFlowDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using (var setup = new FileFlowDbContext(options))
+            await setup.Database.EnsureCreatedAsync();
+
+        Guid ruleId;
+        await using (var db = new FileFlowDbContext(options))
+        {
+            var service = new MonitoringRuleService(new MonitoringRuleRepository(db));
+            var created = await service.CreateAsync(new MonitoringRuleConfiguration(
+                "Citi - intervalle",
+                @"D:\\FileFlow\\Citi",
+                MatchingMode.FileNameTemplate,
+                "trade1_{DATE}_{TIME}.csv;trade2_{DATE}_{TIME}.csv",
+                1,
+                [],
+                ["csv"],
+                [new TimeOnly(8, 0), new TimeOnly(12, 0)],
+                WeekDays.Weekdays,
+                TimeZoneInfo.Utc.Id,
+                15,
+                5,
+                true));
+
+            ruleId = created.Id;
+        }
+
+        var expectedTimes = Enumerable.Range(0, 25)
+            .Select(index => new TimeOnly(19, 0).AddMinutes(index * 5))
+            .ToArray();
+
+        await using (var db = new FileFlowDbContext(options))
+        {
+            var service = new MonitoringRuleService(new MonitoringRuleRepository(db));
+            var updated = await service.UpdateAsync(ruleId, new MonitoringRuleConfiguration(
+                "Citi - intervalle",
+                @"D:\\FileFlow\\Citi",
+                MatchingMode.FileNameTemplate,
+                "trade1_{DATE}_{TIME}.csv;trade2_{DATE}_{TIME}.csv",
+                1,
+                [],
+                ["csv"],
+                expectedTimes,
+                WeekDays.Weekdays,
+                TimeZoneInfo.Utc.Id,
+                15,
+                5,
+                true));
+
+            Assert.NotNull(updated);
+            Assert.Equal(25, updated.ScheduleTimes.Count);
+        }
+
+        await using (var db = new FileFlowDbContext(options))
+        {
+            var service = new MonitoringRuleService(new MonitoringRuleRepository(db));
+            var reloaded = await service.GetByIdAsync(ruleId);
+
+            Assert.NotNull(reloaded);
+            Assert.Equal(25, reloaded.ScheduleTimes.Count);
+            Assert.Equal(expectedTimes, reloaded.ScheduleTimes.Select(x => x.ExpectedTime).OrderBy(x => x).ToArray());
+        }
+
+        // Re-saving the same 25 values must be idempotent and must not create duplicate rows.
+        await using (var db = new FileFlowDbContext(options))
+        {
+            var service = new MonitoringRuleService(new MonitoringRuleRepository(db));
+            var updatedAgain = await service.UpdateAsync(ruleId, new MonitoringRuleConfiguration(
+                "Citi - intervalle",
+                @"D:\\FileFlow\\Citi",
+                MatchingMode.FileNameTemplate,
+                "trade1_{DATE}_{TIME}.csv;trade2_{DATE}_{TIME}.csv",
+                1,
+                [],
+                ["csv"],
+                expectedTimes,
+                WeekDays.Weekdays,
+                TimeZoneInfo.Utc.Id,
+                15,
+                5,
+                true));
+
+            Assert.NotNull(updatedAgain);
+            Assert.Equal(25, updatedAgain.ScheduleTimes.Count);
+        }
+    }
 }
