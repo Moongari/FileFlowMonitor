@@ -54,6 +54,7 @@
 @if (_form.MatchingMode == 1) { <span>Un modèle par fichier, séparés par des points-virgules. Variables : {DATE} (yyyyMMdd), {YYYY}, {MM}, {DD}, {TIME} (HHmmss ou HHmm0), {HH}, {MINUTES}, {SECONDS}. Chaque modèle est décliné à chaque horaire.</span> }
 @if (_form.MatchingMode == 2) { <span>L'expression régulière est appliquée au nom du fichier, sans tenir compte de la casse. Le nombre d'occurrences attendues est défini par « Nombre de fichiers attendus ».</span> }
 @if (_form.MatchingMode == 3) { <span>Le moteur compte le nombre de fichiers reçus à chaque horaire. Les extensions autorisées servent de filtre ; sans extension, tous les fichiers sont comptés.</span> }
+@if (_form.MatchingMode == 1 && _form.ScheduleTimesText.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).Length > 1 && !_form.FileNamePattern.Contains("{TIME}",StringComparison.OrdinalIgnoreCase)) { <span class="warning-text">Attention : le modèle ne contient pas {TIME}. Le même nom sera attendu à chaque horaire ; un fichier physique ne pourra satisfaire qu'une seule occurrence. Ajoutez {TIME} si le nom change à chaque réception.</span> }
 </div>
 <div class="form-actions"><button type="button" class="button-secondary" @onclick="Cancel">Annuler</button><button type="submit" class="button-primary" disabled="@_saving">@(_saving ? "Enregistrement…" : (_editingId.HasValue ? "Enregistrer les modifications" : "Créer la règle"))</button></div>
 </EditForm></section>
