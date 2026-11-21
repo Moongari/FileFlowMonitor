@@ -60,7 +60,7 @@ public static class MonitoringRuleEndpoints
             Exemple de corps JSON :
             {
               "name": "Citi - fichiers de trading",
-              "folderPath": "D:\\\\FileFlow\\\\Citi",
+              "folderPath": "D:\\FileFlow\\Citi",
               "matchingMode": 0,
               "expectedCount": 2,
               "expectedFileNames": ["trades.csv", "positions.csv"],
