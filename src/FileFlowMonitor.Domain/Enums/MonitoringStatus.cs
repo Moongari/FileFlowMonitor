@@ -8,7 +8,8 @@ public enum ExpectedFileStatus
     Received = 3,
     Late = 4,
     Invalid = 5,
-    Duplicate = 6
+    Duplicate = 6,
+    Cancelled = 7
 }
 
 public enum MatchingMode
