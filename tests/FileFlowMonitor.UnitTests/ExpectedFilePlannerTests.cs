@@ -35,4 +35,31 @@ public sealed class ExpectedFilePlannerTests
 
         Assert.Empty(result);
     }
+    [Fact]
+    public void Plan_Expands_Date_Tokens_In_FileNameTemplate()
+    {
+        var rule = new MonitoringRule("Citi daily", @"D:\\Inbound", MatchingMode.FileNameTemplate);
+        rule.ConfigureMatching(MatchingMode.FileNameTemplate, "trades_{DATE}_{YYYY}{MM}{DD}.csv");
+        rule.ConfigureCalendar(WeekDays.EveryDay, "UTC");
+        rule.SetScheduleTimes([new TimeOnly(8, 0)]);
+
+        var result = new ExpectedFilePlanner().Plan(rule, new DateOnly(2026, 11, 21));
+
+        var expected = Assert.Single(result);
+        Assert.Equal("trades_20261121_20261121.csv", expected.ExpectedFileName);
+    }
+
+    [Fact]
+    public void Plan_Skips_Dates_Outside_Rule_Calendar()
+    {
+        var rule = new MonitoringRule("Weekday feed", @"D:\\Inbound", MatchingMode.ExactName);
+        rule.SetExpectedFileNames(["trades.csv"]);
+        rule.ConfigureCalendar(WeekDays.Weekdays, "UTC");
+        rule.SetScheduleTimes([new TimeOnly(8, 0)]);
+
+        var result = new ExpectedFilePlanner().Plan(rule, new DateOnly(2026, 11, 22));
+
+        Assert.Empty(result);
+    }
+
 }
