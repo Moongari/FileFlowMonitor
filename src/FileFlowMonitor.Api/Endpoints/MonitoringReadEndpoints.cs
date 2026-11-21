@@ -25,10 +25,15 @@ public static class MonitoringReadEndpoints
 
             var startedAt = DateTimeOffset.UtcNow;
             await cycle.ExecuteAsync(ct, ruleId);
-            var executions = await db.MonitoringExecutions.AsNoTracking()
+            // DateTimeOffset comparisons with the computed threshold are not translated
+            // consistently by all supported EF Core SQLite/provider versions.
+            // Load the small execution history and apply the forced-cycle window in memory.
+            var allExecutions = await db.MonitoringExecutions.AsNoTracking()
+                .OrderByDescending(x => x.StartedAtUtc).ToListAsync(ct);
+            var executions = allExecutions
                 .Where(x => x.StartedAtUtc >= startedAt.AddSeconds(-1) &&
                     (!ruleId.HasValue || x.MonitoringRuleId == ruleId.Value))
-                .OrderByDescending(x => x.StartedAtUtc).ToListAsync(ct);
+                .ToList();
             var expected = await db.ExpectedFiles.AsNoTracking()
                 .Where(x => !ruleId.HasValue || x.MonitoringRuleId == ruleId.Value)
                 .ToListAsync(ct);
