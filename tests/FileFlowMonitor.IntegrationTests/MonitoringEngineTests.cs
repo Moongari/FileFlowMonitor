@@ -71,7 +71,7 @@ public sealed class MonitoringEngineTests
                 var received = await verify.ReceivedFiles.SingleAsync(x => x.MonitoringRuleId == ruleId);
                 Assert.Equal(2, expectedFiles.Count);
                 Assert.NotNull(received.StableAtUtc);
-                Assert.Equal(ExpectedFileStatus.Late, expected.Status);
+                Assert.Equal(ExpectedFileStatus.Received, expected.Status);
                 Assert.Equal(ExpectedFileStatus.Scheduled, nextOccurrence.Status);
                 Assert.Equal(received.Id, expected.ReceivedFileId);
                 Assert.Equal(2, await verify.MonitoringExecutions.CountAsync(x => x.MonitoringRuleId == ruleId));
@@ -129,7 +129,7 @@ public sealed class MonitoringEngineTests
             await using (var verify = new FileFlowDbContext(options))
             {
                 var expected = await verify.ExpectedFiles.SingleAsync(x => x.Id == expectedId);
-                Assert.Equal(ExpectedFileStatus.Received, expected.Status);
+                Assert.Equal(ExpectedFileStatus.Late, expected.Status);
                 Assert.NotNull(expected.ReceivedFileId);
                 var incidents = await verify.MonitoringIncidents.Where(x =>
                     x.MonitoringRuleId == ruleId && x.Code == "EXPECTED_FILE_MISSING").ToListAsync();
