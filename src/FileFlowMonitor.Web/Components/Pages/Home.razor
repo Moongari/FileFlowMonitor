@@ -1,0 +1,68 @@
+@page "/"
+@inject IHttpClientFactory ClientFactory
+<PageTitle>Vue d'ensemble | FileFlow Monitor</PageTitle>
+<div class="page-heading">
+    <div><div class="eyebrow">CENTRE DE CONTRÔLE</div><h1>Vue d'ensemble</h1><p>Surveillez vos flux, identifiez les retards et traitez les incidents.</p></div>
+    <button class="button-secondary" @onclick="RefreshAsync">↻ Actualiser</button>
+</div>
+@if (_loading)
+{
+    <div class="loading-panel">Chargement des indicateurs de supervision…</div>
+}
+else if (!string.IsNullOrEmpty(_error))
+{
+    <div class="alert alert-error"><strong>Connexion à l'API impossible</strong><p>@_error</p><span>Vérifiez que FileFlowMonitor.Api est démarrée et que Api:BaseUrl est correctement configuré.</span></div>
+}
+else if (_data is not null)
+{
+    <div class="status-strip"><span class="pulse"></span> Données actualisées à @_generatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") <span class="muted">• Actualisation manuelle</span></div>
+    <div class="metric-grid">
+        <div class="metric-card"><span>Règles actives</span><strong>@_data.RootElement.GetProperty("rulesEnabled").GetInt32()<small> / @_data.RootElement.GetProperty("rulesTotal").GetInt32()</small></strong><em>Surveillances configurées</em></div>
+        <div class="metric-card"><span>Fichiers attendus</span><strong>@Value("expectedToday")</strong><em>Pour la journée</em></div>
+        <div class="metric-card metric-success"><span>Reçus à l'heure</span><strong>@Value("receivedToday")</strong><em>Conformes aux attentes</em></div>
+        <div class="metric-card metric-warning"><span>En retard</span><strong>@Value("lateToday")</strong><em>Reçus après échéance</em></div>
+        <div class="metric-card metric-danger"><span>Manquants</span><strong>@Value("missingToday")</strong><em>Délai de grâce dépassé</em></div>
+        <div class="metric-card"><span>Incidents ouverts</span><strong>@Value("openIncidents")</strong><em>À examiner</em></div>
+    </div>
+    <div class="content-grid">
+        <section class="panel panel-wide">
+            <div class="panel-heading"><div><h2>Règles de surveillance</h2><p>État des dossiers et des horaires surveillés</p></div><a class="text-link" href="/rules">Gérer les règles →</a></div>
+            <div class="table-wrap"><table><thead><tr><th>Règle</th><th>Dossier surveillé</th><th>Horaires</th><th>État</th></tr></thead><tbody>
+            @foreach (var rule in _data.RootElement.GetProperty("rules").EnumerateArray())
+            {
+                <tr><td><strong>@rule.GetProperty("name").GetString()</strong></td><td class="path-cell">@rule.GetProperty("folderPath").GetString()</td><td>@string.Join(" · ", rule.GetProperty("scheduleTimes").EnumerateArray().Select(x => x.GetString()))</td><td><span class="pill @(rule.GetProperty("isEnabled").GetBoolean() ? "pill-green" : "pill-muted")">@(rule.GetProperty("isEnabled").GetBoolean() ? "Active" : "Désactivée")</span></td></tr>
+            }
+            </tbody></table></div>
+        </section>
+        <section class="panel">
+            <div class="panel-heading"><div><h2>Incidents récents</h2><p>Événements nécessitant une attention</p></div><a class="text-link" href="/operations">Tout voir →</a></div>
+            @if (_data.RootElement.GetProperty("latestIncidents").GetArrayLength() == 0)
+            { <div class="empty-inline"><span>✓</span><strong>Aucun incident récent</strong><small>Les incidents détectés apparaîtront ici.</small></div> }
+            else
+            {
+                @foreach (var incident in _data.RootElement.GetProperty("latestIncidents").EnumerateArray())
+                { <div class="incident-row"><span class="incident-dot"></span><div><strong>@incident.GetProperty("code").GetString()</strong><p>@incident.GetProperty("message").GetString()</p><small>@incident.GetProperty("occurredAtUtc").GetDateTimeOffset().ToLocalTime().ToString("dd/MM HH:mm")</small></div></div> }
+            }
+        </section>
+    </div>
+    <section class="panel execution-panel"><div class="panel-heading"><div><h2>Derniers cycles du moteur</h2><p>Historique des dernières réconciliations</p></div><a class="text-link" href="/operations">Historique complet →</a></div>
+    <div class="table-wrap"><table><thead><tr><th>Démarrage</th><th>Fichiers détectés</th><th>Fin</th><th>Résultat</th></tr></thead><tbody>
+    @foreach (var run in _data.RootElement.GetProperty("latestExecutions").EnumerateArray())
+    { <tr><td>@run.GetProperty("startedAtUtc").GetDateTimeOffset().ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</td><td>@run.GetProperty("filesDiscovered").GetInt32()</td><td>@(run.GetProperty("completedAtUtc").ValueKind == JsonValueKind.Null ? "En cours" : run.GetProperty("completedAtUtc").GetDateTimeOffset().ToLocalTime().ToString("HH:mm:ss"))</td><td><span class="pill @(run.GetProperty("error").ValueKind == JsonValueKind.Null ? "pill-green" : "pill-red")">@(run.GetProperty("error").ValueKind == JsonValueKind.Null ? "Terminé" : "Erreur")</span></td></tr> }
+    </tbody></table></div></section>
+}
+@code {
+    private JsonDocument? _data;
+    private bool _loading = true;
+    private string? _error;
+    private DateTimeOffset _generatedAt;
+    protected override async Task OnInitializedAsync() => await RefreshAsync();
+    private int Value(string key) => _data!.RootElement.GetProperty(key).GetInt32();
+    private async Task RefreshAsync()
+    {
+        _loading = true; _error = null;
+        try { _data?.Dispose(); _data = await ClientFactory.CreateClient("FileFlowApi").GetFromJsonAsync<JsonDocument>("api/monitoring/overview"); _generatedAt = _data!.RootElement.GetProperty("generatedAtUtc").GetDateTimeOffset(); }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+}
