@@ -144,7 +144,8 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                 var invalidCandidates = await db.ExpectedFiles
                     .Where(x => x.MonitoringRuleId == rule.Id &&
                                 x.Status != ExpectedFileStatus.Received &&
-                                x.Status != ExpectedFileStatus.Late)
+                                x.Status != ExpectedFileStatus.Late &&
+                                x.Status != ExpectedFileStatus.Cancelled)
                     .ToListAsync(cancellationToken);
                 var invalidExpected = invalidCandidates.FirstOrDefault(x =>
                     string.Equals(x.ExpectedFileName, info.Name, StringComparison.OrdinalIgnoreCase));
