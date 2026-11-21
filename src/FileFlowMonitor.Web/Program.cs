@@ -1,17 +1,23 @@
+using FileFlowMonitor.Web.Components;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+var apiBaseUrl = builder.Configuration["Api:BaseUrl"] ?? "http://localhost:5000/";
+builder.Services.AddHttpClient("FileFlowApi", client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl, UriKind.Absolute);
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+
 var app = builder.Build();
-
-app.MapGet("/", () => Results.Content("""
-<!doctype html>
-<html lang="fr">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>FileFlow Monitor</title></head>
-<body>
-  <main>
-    <h1>FileFlow Monitor</h1>
-    <p>Socle initial créé. Le tableau de bord Blazor sera implémenté dans la phase interface.</p>
-  </main>
-</body>
-</html>
-""", "text/html"));
-
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    app.UseHsts();
+}
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseAntiforgery();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.Run();
