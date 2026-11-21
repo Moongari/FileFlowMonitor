@@ -31,13 +31,43 @@ public sealed class ExpectedFilePlanner
             var expectedAt = new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(local, zone), TimeSpan.Zero);
             var deadline = expectedAt.AddMinutes(rule.GracePeriodMinutes);
 
-            // Expand each configured template independently for every schedule.
-            // This creates a separate expected occurrence for each file and time slot.
             foreach (var name in ResolveNames(rule, businessDate, schedule.ExpectedTime))
                 results.Add(new ExpectedFile(rule.Id, name, expectedAt, deadline));
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Matches a physical file against a persisted occurrence. Template matching
+    /// accepts both HHmmss and the legacy HHmm0 time token used by test feeds.
+    /// </summary>
+    public bool MatchesFileName(MonitoringRule rule, ExpectedFile expected, string fileName)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        ArgumentNullException.ThrowIfNull(expected);
+        if (string.IsNullOrWhiteSpace(fileName)) return false;
+
+        if (rule.MatchingMode == MatchingMode.ExactName)
+            return string.Equals(expected.ExpectedFileName, fileName, StringComparison.OrdinalIgnoreCase);
+
+        if (rule.MatchingMode != MatchingMode.FileNameTemplate ||
+            string.IsNullOrWhiteSpace(rule.FileNamePattern))
+            return false;
+
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(rule.TimeZoneId);
+        var local = TimeZoneInfo.ConvertTime(expected.ExpectedAtUtc, zone);
+        var date = DateOnly.FromDateTime(local.DateTime);
+        var time = TimeOnly.FromDateTime(local.DateTime);
+        var templates = rule.FileNamePattern.Split(
+            new[] { '\\r', '\\n', ';' },
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return templates.Any(template =>
+            string.Equals(ExpandTemplate(template, date, time, time.ToString("HHmmss")),
+                fileName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(ExpandTemplate(template, date, time, time.ToString("HHmm") + "0"),
+                fileName, StringComparison.OrdinalIgnoreCase));
     }
 
     private static IReadOnlyList<string> ResolveNames(MonitoringRule rule, DateOnly date, TimeOnly time)
@@ -49,22 +79,26 @@ public sealed class ExpectedFilePlanner
             !string.IsNullOrWhiteSpace(rule.FileNamePattern))
         {
             var templates = rule.FileNamePattern
-                .Split(new[] { '\r', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                .Split(new[] { '\\r', '\\n', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-            return templates.Select(template => template
-                .Replace("{DATE}", date.ToString("yyyyMMdd"), StringComparison.OrdinalIgnoreCase)
-                .Replace("{YYYY}", date.ToString("yyyy"), StringComparison.OrdinalIgnoreCase)
-                .Replace("{MM}", date.ToString("MM"), StringComparison.OrdinalIgnoreCase)
-                .Replace("{DD}", date.ToString("dd"), StringComparison.OrdinalIgnoreCase)
-                .Replace("{TIME}", time.ToString("HHmmss"), StringComparison.OrdinalIgnoreCase)
-                .Replace("{HH}", time.ToString("HH"), StringComparison.OrdinalIgnoreCase)
-                .Replace("{MINUTES}", time.ToString("mm"), StringComparison.OrdinalIgnoreCase)
-                .Replace("{SECONDS}", time.ToString("ss"), StringComparison.OrdinalIgnoreCase))
+            return templates.Select(template => ExpandTemplate(template, date, time, time.ToString("HHmmss")))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
         }
 
-        // Pattern and quantity rules cannot determine individual missing file names.
+        // Pattern and quantity matching require occurrence-count semantics and are
+        // intentionally not expanded into fabricated individual file names.
         return [];
     }
+
+    private static string ExpandTemplate(string template, DateOnly date, TimeOnly time, string timeToken) =>
+        template
+            .Replace("{DATE}", date.ToString("yyyyMMdd"), StringComparison.OrdinalIgnoreCase)
+            .Replace("{YYYY}", date.ToString("yyyy"), StringComparison.OrdinalIgnoreCase)
+            .Replace("{MM}", date.ToString("MM"), StringComparison.OrdinalIgnoreCase)
+            .Replace("{DD}", date.ToString("dd"), StringComparison.OrdinalIgnoreCase)
+            .Replace("{TIME}", timeToken, StringComparison.OrdinalIgnoreCase)
+            .Replace("{HH}", time.ToString("HH"), StringComparison.OrdinalIgnoreCase)
+            .Replace("{MINUTES}", time.ToString("mm"), StringComparison.OrdinalIgnoreCase)
+            .Replace("{SECONDS}", time.ToString("ss"), StringComparison.OrdinalIgnoreCase);
 }
