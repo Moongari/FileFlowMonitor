@@ -48,7 +48,7 @@ public sealed class MonitoringRuleCrudTests
 
         await using (var db = new FileFlowDbContext(options))
         {
-            var service = new MonitoringRuleService(new Persistence.MonitoringRuleRepository(db));
+            var service = new MonitoringRuleService(new MonitoringRuleRepository(db));
             var loaded = await service.GetByIdAsync(id);
 
             Assert.NotNull(loaded);
@@ -80,7 +80,7 @@ public sealed class MonitoringRuleCrudTests
 
         await using (var db = new FileFlowDbContext(options))
         {
-            var service = new MonitoringRuleService(new Persistence.MonitoringRuleRepository(db));
+            var service = new MonitoringRuleService(new MonitoringRuleRepository(db));
             var loaded = await service.GetByIdAsync(id);
             Assert.NotNull(loaded);
             Assert.False(loaded.IsEnabled);
