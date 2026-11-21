@@ -81,4 +81,54 @@ public sealed class MonitoringEngineTests
             Directory.Delete(folder, recursive: true);
         }
     }
+    [Fact]
+    public async Task Folder_Unavailable_Incident_Is_Resolved_When_Folder_Returns()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "FileFlowMonitor.Tests", Guid.NewGuid().ToString("N"));
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<FileFlowDbContext>().UseSqlite(connection).Options;
+
+        try
+        {
+            Guid ruleId;
+            await using (var setup = new FileFlowDbContext(options))
+            {
+                await setup.Database.EnsureCreatedAsync();
+                var service = new MonitoringRuleService(new MonitoringRuleRepository(setup));
+                var rule = await service.CreateAsync(new MonitoringRuleConfiguration(
+                    "Unavailable source", folder, MatchingMode.ExactName, null, 1,
+                    ["daily.csv"], ["csv"], [new TimeOnly(8, 0)], WeekDays.EveryDay,
+                    TimeZoneInfo.Utc.Id, 15, 0, true));
+                ruleId = rule.Id;
+            }
+
+            await using (var db = new FileFlowDbContext(options))
+                await new MonitoringEngineCycle(db, new ExpectedFilePlanner()).ExecuteAsync();
+
+            await using (var verify = new FileFlowDbContext(options))
+            {
+                var incident = await verify.MonitoringIncidents.SingleAsync(x =>
+                    x.MonitoringRuleId == ruleId && x.Code == "FOLDER_UNAVAILABLE");
+                Assert.False(incident.IsResolved);
+            }
+
+            Directory.CreateDirectory(folder);
+            await using (var db = new FileFlowDbContext(options))
+                await new MonitoringEngineCycle(db, new ExpectedFilePlanner()).ExecuteAsync();
+
+            await using (var verify = new FileFlowDbContext(options))
+            {
+                var incident = await verify.MonitoringIncidents.SingleAsync(x =>
+                    x.MonitoringRuleId == ruleId && x.Code == "FOLDER_UNAVAILABLE");
+                Assert.True(incident.IsResolved);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, recursive: true);
+        }
+    }
+
 }
