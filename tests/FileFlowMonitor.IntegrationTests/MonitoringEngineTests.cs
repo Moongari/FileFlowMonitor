@@ -135,7 +135,9 @@ public sealed class MonitoringEngineTests
                 Assert.Equal(ExpectedFileStatus.Late, expected.Status);
                 Assert.NotNull(expected.ReceivedFileId);
                 var incidents = await verify.MonitoringIncidents.Where(x =>
-                    x.MonitoringRuleId == ruleId && x.Code == "EXPECTED_FILE_MISSING").ToListAsync();
+                    x.MonitoringRuleId == ruleId && x.ExpectedFileId == expectedId &&
+                    x.Code == "EXPECTED_FILE_MISSING").ToListAsync();
+                Assert.NotEmpty(incidents);
                 Assert.All(incidents, x => Assert.NotNull(x.ResolvedAtUtc));
             }
         }
