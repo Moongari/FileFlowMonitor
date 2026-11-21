@@ -85,7 +85,7 @@ public static class MonitoringRuleEndpoints
             Guid id,
             MonitoringRuleRequest request,
             MonitoringRuleService service,
-            ILogger logger,
+            [FromServices] ILogger<MonitoringRuleEndpoints> logger,
             CancellationToken ct) =>
         {
             var validation = Validate(request);
