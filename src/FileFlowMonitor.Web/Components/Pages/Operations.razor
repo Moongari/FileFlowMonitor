@@ -125,7 +125,7 @@ else{
    (_keys,_columns)=_tab switch{
     "expected"=>(new[] {"ruleName","expectedFileName","expectedAtLocal","deadlineAtLocal","receivedAtLocal","status"},new[] {"Flux","Fichier attendu","Heure prévue","Échéance","Réception","Statut"}),
     "received"=>(new[] {"fileName","fullPath","sizeBytes","detectedAtUtc","stableAtUtc"},new[] {"Fichier","Chemin complet","Taille (octets)","Détecté le","Stable depuis"}),
-    "incidents"=>(new[] {"code","message","occurredAtUtc","status","severity","assignedTo","isResolved","resolvedAtUtc"},new[] {"Code","Description","Détecté le","Statut","Priorité","Assigné à","Résolu","Résolu le"}),
+    "incidents"=>(new[] {"ruleName","code","message","occurredAtUtc","status","severity","assignedTo","isResolved","resolvedAtUtc"},new[] {"Flux","Code","Description","Détecté le","Statut","Priorité","Assigné à","Résolu","Résolu le"}),
     _=>(new[] {"startedAtUtc","completedAtUtc","filesDiscovered","error"},new[] {"Démarré le","Terminé le","Fichiers détectés","Erreur"})};
   }catch(Exception ex){_error="Impossible de récupérer les données : "+ex.Message;_rows=[];}
   finally{_loading=false;}
