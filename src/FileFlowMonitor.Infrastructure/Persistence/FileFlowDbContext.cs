@@ -10,6 +10,8 @@ public sealed class FileFlowDbContext(DbContextOptions<FileFlowDbContext> option
     public DbSet<ExpectedFile> ExpectedFiles => Set<ExpectedFile>();
     public DbSet<ReceivedFile> ReceivedFiles => Set<ReceivedFile>();
     public DbSet<MonitoringIncident> MonitoringIncidents => Set<MonitoringIncident>();
+    public DbSet<MonitoringIncidentWorkflow> MonitoringIncidentWorkflows => Set<MonitoringIncidentWorkflow>();
+    public DbSet<MonitoringIncidentHistory> MonitoringIncidentHistories => Set<MonitoringIncidentHistory>();
     public DbSet<MonitoringExecution> MonitoringExecutions => Set<MonitoringExecution>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -64,6 +66,24 @@ public sealed class FileFlowDbContext(DbContextOptions<FileFlowDbContext> option
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Code).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Message).HasMaxLength(2000).IsRequired();
+        });
+
+        modelBuilder.Entity<MonitoringIncidentWorkflow>(entity =>
+        {
+            entity.HasKey(x => x.MonitoringIncidentId);
+            entity.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Severity).HasMaxLength(20).IsRequired();
+            entity.Property(x => x.AssignedTo).HasMaxLength(150);
+            entity.Property(x => x.ResolutionComment).HasMaxLength(2000);
+            entity.HasIndex(x => new { x.Status, x.Severity });
+        });
+
+        modelBuilder.Entity<MonitoringIncidentHistory>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Action).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Details).HasMaxLength(2000);
+            entity.HasIndex(x => new { x.MonitoringIncidentId, x.OccurredAtUtc });
         });
 
         modelBuilder.Entity<MonitoringExecution>().HasKey(x => x.Id);
