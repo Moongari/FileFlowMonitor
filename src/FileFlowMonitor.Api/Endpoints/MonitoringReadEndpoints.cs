@@ -246,12 +246,15 @@ public static class MonitoringReadEndpoints
         group.MapGet("/incidents", async (FileFlowDbContext db, bool? openOnly, int? limit, CancellationToken ct) =>
         {
             var incidents = await db.MonitoringIncidents.AsNoTracking().ToListAsync(ct);
-            if (openOnly == true) incidents = incidents.Where(x => x.ResolvedAtUtc == null).ToList();
+            var workflows = await db.MonitoringIncidentWorkflows.AsNoTracking()
+                .ToDictionaryAsync(x => x.MonitoringIncidentId, ct);
+            if (openOnly == true)
+                incidents = incidents.Where(x =>
+                    workflows.TryGetValue(x.Id, out var workflow)
+                        ? workflow.Status is not ("Resolved" or "Closed")
+                        : x.ResolvedAtUtc == null).ToList();
             var selected = incidents.OrderByDescending(x => x.OccurredAtUtc)
                 .Take(Math.Clamp(limit ?? 100, 1, 500)).ToList();
-            var ids = selected.Select(x => x.Id).ToArray();
-            var workflows = await db.MonitoringIncidentWorkflows.AsNoTracking()
-                .Where(x => ids.Contains(x.MonitoringIncidentId)).ToDictionaryAsync(x => x.MonitoringIncidentId, ct);
             var rows = selected.Select(x =>
             {
                 workflows.TryGetValue(x.Id, out var workflow);
