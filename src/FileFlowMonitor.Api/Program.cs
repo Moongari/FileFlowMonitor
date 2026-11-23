@@ -32,6 +32,35 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<FileFlowDbContext>();
     await db.Database.EnsureCreatedAsync();
+
+    // Additive schema upgrade: EnsureCreated does not evolve databases created by earlier releases.
+    // CREATE TABLE IF NOT EXISTS preserves all existing monitoring data.
+    await db.Database.ExecuteSqlRawAsync("""
+        CREATE TABLE IF NOT EXISTS MonitoringIncidentWorkflows (
+            MonitoringIncidentId TEXT NOT NULL CONSTRAINT PK_MonitoringIncidentWorkflows PRIMARY KEY,
+            Status TEXT NOT NULL,
+            Severity TEXT NOT NULL,
+            AssignedTo TEXT NULL,
+            AcknowledgedAtUtc TEXT NULL,
+            ResolvedAtUtc TEXT NULL,
+            ClosedAtUtc TEXT NULL,
+            ResolutionComment TEXT NULL,
+            CreatedAtUtc TEXT NOT NULL,
+            UpdatedAtUtc TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS IX_MonitoringIncidentWorkflows_Status_Severity
+            ON MonitoringIncidentWorkflows (Status, Severity);
+        CREATE TABLE IF NOT EXISTS MonitoringIncidentHistories (
+            Id TEXT NOT NULL CONSTRAINT PK_MonitoringIncidentHistories PRIMARY KEY,
+            MonitoringIncidentId TEXT NOT NULL,
+            Action TEXT NOT NULL,
+            Details TEXT NULL,
+            OccurredAtUtc TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS IX_MonitoringIncidentHistories_MonitoringIncidentId_OccurredAtUtc
+            ON MonitoringIncidentHistories (MonitoringIncidentId, OccurredAtUtc);
+        """);
+
 }
 
 if (app.Environment.IsDevelopment())
