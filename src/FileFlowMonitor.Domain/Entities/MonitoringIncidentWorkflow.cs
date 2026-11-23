@@ -43,7 +43,7 @@ public sealed class MonitoringIncidentWorkflow
             if (next == "Closed")
             {
                 ResolvedAtUtc ??= nowUtc;
-                ClosedAtUtc = nowUtc;
+                ClosedAtUtc ??= nowUtc;
             }
             if (next == "Open" && previousStatus != "Open")
             {
