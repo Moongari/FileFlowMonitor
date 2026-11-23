@@ -125,6 +125,7 @@ public sealed class ExpectedFilePlanner
             .Replace("{MM}", date.ToString("MM"), StringComparison.OrdinalIgnoreCase)
             .Replace("{DD}", date.ToString("dd"), StringComparison.OrdinalIgnoreCase)
             .Replace("{TIME}", timeToken, StringComparison.OrdinalIgnoreCase)
+            .Replace("{TIME5}", time.ToString("HHmm") + "0", StringComparison.OrdinalIgnoreCase)
             .Replace("{HH}", time.ToString("HH"), StringComparison.OrdinalIgnoreCase)
             .Replace("{MINUTES}", time.ToString("mm"), StringComparison.OrdinalIgnoreCase)
             .Replace("{SECONDS}", time.ToString("ss"), StringComparison.OrdinalIgnoreCase);
