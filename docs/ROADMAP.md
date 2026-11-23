@@ -55,3 +55,7 @@
 ## Validation automatisée actuelle
 
 La CI GitHub Actions compile et exécute les tests sur les deux cibles .NET 8 et .NET 10. Les scénarios couvrent le planificateur, les transitions de statut, le matching et la stabilité, les incidents de dossier, l'annulation/réactivation des attentes, les endpoints de supervision, le fuseau métier et les exemples Swagger.
+
+## Roadmap supervision d'équipe, incidents et SLA
+
+La trajectoire détaillée validée pour le positionnement outil d'équipe IT est documentée dans [`ROADMAP_TEAM_SUPERVISION.md`](ROADMAP_TEAM_SUPERVISION.md). Elle couvre l'audit de l'existant, la stratégie de migrations SQLite, le workflow d'incidents, la refonte de la supervision, les politiques SLA et les statistiques historiques. Les notifications externes restent hors périmètre.
