@@ -277,11 +277,9 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
             var workflow = await db.MonitoringIncidentWorkflows
                 .SingleOrDefaultAsync(x => x.MonitoringIncidentId == incident.Id, cancellationToken);
             if (workflow is not null && workflow.Status != "Closed")
-            {
                 workflow.Update("Resolved", null, null, "Résolu automatiquement : le fichier attendu a été reçu.", now);
-                db.MonitoringIncidentHistories.Add(new MonitoringIncidentHistory(
-                    incident.Id, "AutoResolved", "Fichier attendu reçu ; incident résolu par le moteur.", now));
-            }
+            db.MonitoringIncidentHistories.Add(new MonitoringIncidentHistory(
+                incident.Id, "AutoResolved", "Fichier attendu reçu ; incident résolu par le moteur.", now));
         }
     }
 
@@ -315,10 +313,8 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
         var workflow = await db.MonitoringIncidentWorkflows
             .SingleOrDefaultAsync(x => x.MonitoringIncidentId == open.Id, cancellationToken);
         if (workflow is not null && workflow.Status != "Closed")
-        {
             workflow.Update("Resolved", null, null, "Résolu automatiquement : condition technique rétablie.", now);
-            db.MonitoringIncidentHistories.Add(new MonitoringIncidentHistory(
-                open.Id, "AutoResolved", "Condition technique rétablie ; incident résolu par le moteur.", now));
-        }
+        db.MonitoringIncidentHistories.Add(new MonitoringIncidentHistory(
+            open.Id, "AutoResolved", "Condition technique rétablie ; incident résolu par le moteur.", now));
     }
 }
