@@ -36,3 +36,25 @@
 
 /* Actions administratives */
 .heading-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.button-danger{border:1px solid #f0c4c7;border-radius:7px;padding:10px 16px;font:600 12px 'DM Sans',sans-serif;cursor:pointer;background:#fff0f1;color:#b83f49}.button-danger:hover{background:#fde4e6}.button-danger:disabled{opacity:.6;cursor:wait}
+
+
+/* Supervision : lecture immédiate des fichiers par occurrence */
+.expected-group-row td{padding:10px 12px;background:#edf2f8;border-top:2px solid #dce5f0;border-bottom:1px solid #dce5f0}
+.expected-group-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.expected-group-heading>strong{font:700 11px Manrope,sans-serif;color:#26364d}
+.expected-group-summary{display:flex;gap:7px;flex-wrap:wrap}
+.group-count{font-size:9px;font-weight:700;padding:4px 8px;border-radius:12px;white-space:nowrap}
+.group-count-received{background:#e1f5ec;color:#137b55}
+.group-count-late{background:#fff0d9;color:#a96912}
+.group-count-missing{background:#fde5e7;color:#b83240}
+.group-count-pending{background:#e8edf4;color:#66758b}
+.expected-file-row td:first-child{padding-left:24px}
+.expected-file-name{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:10px}
+.expected-row-received td{background:#f0faf5}
+.expected-row-late td{background:#fff8ed}
+.expected-row-missing td{background:#fff0f1;color:#a73540;font-weight:600}
+.expected-row-pending td{background:#f7f9fc;color:#718097}
+.expected-row-missing td:first-child{box-shadow:inset 4px 0 #d94e59}
+.expected-row-late td:first-child{box-shadow:inset 4px 0 #d9952c}
+.expected-row-received td:first-child{box-shadow:inset 4px 0 #21a675}
+@media(max-width:720px){.expected-group-heading{align-items:flex-start;flex-direction:column}.expected-group-summary{gap:5px}}
