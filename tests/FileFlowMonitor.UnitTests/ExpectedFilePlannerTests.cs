@@ -77,13 +77,13 @@ public sealed class ExpectedFilePlannerTests
         var result = new ExpectedFilePlanner().Plan(rule, new DateOnly(2026, 11, 21));
 
         Assert.Equal(6, result.Count);
-        Assert.Contains(result, x => x.ExpectedFileName == "trade1_20261121_080000.csv");
-        Assert.Contains(result, x => x.ExpectedFileName == "trade2_20261121_080000.csv");
-        Assert.Contains(result, x => x.ExpectedFileName == "trade1_20261121_090000.csv");
-        Assert.Contains(result, x => x.ExpectedFileName == "trade2_20261121_090000.csv");
-        Assert.Contains(result, x => x.ExpectedFileName == "trade1_20261121_180000.csv");
-        Assert.Contains(result, x => x.ExpectedFileName == "trade2_20261121_180000.csv");
-        Assert.Equal(2, result.Count(x => x.ExpectedAtUtc == result.Single(y => y.ExpectedFileName == "trade1_20261121_180000.csv").ExpectedAtUtc));
+        Assert.Contains(result, x => x.ExpectedFileName == "trade1_20261121_08000.csv");
+        Assert.Contains(result, x => x.ExpectedFileName == "trade2_20261121_08000.csv");
+        Assert.Contains(result, x => x.ExpectedFileName == "trade1_20261121_09000.csv");
+        Assert.Contains(result, x => x.ExpectedFileName == "trade2_20261121_09000.csv");
+        Assert.Contains(result, x => x.ExpectedFileName == "trade1_20261121_18000.csv");
+        Assert.Contains(result, x => x.ExpectedFileName == "trade2_20261121_18000.csv");
+        Assert.Equal(2, result.Count(x => x.ExpectedAtUtc == result.Single(y => y.ExpectedFileName == "trade1_20261121_18000.csv").ExpectedAtUtc));
     }
 
     [Fact]
