@@ -55,7 +55,7 @@ else{
  }
  private async Task ResetDataAsync(){
   if(_resetting)return;
-  var confirmed=await JS.InvokeAsync<bool>("confirm","ATTENTION : cette action va supprimer toutes les règles, horaires, fichiers détectés, occurrences attendues, incidents et historiques. La structure de la base sera conservée. Voulez-vous continuer ?");
+  var confirmed=await JS.InvokeAsync<bool>("confirm", new object?[] { "ATTENTION : cette action va supprimer toutes les règles, horaires, fichiers détectés, occurrences attendues, incidents et historiques. La structure de la base sera conservée. Voulez-vous continuer ?" });
   if(!confirmed)return;
   _resetting=true;_error=null;_success=null;
   try{
