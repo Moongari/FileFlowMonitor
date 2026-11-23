@@ -14,12 +14,29 @@
 @if(_loading){<div class="loading-panel">Chargement des données…</div>}
 else if(_rows.Count==0){<div class="empty-state"><div class="empty-icon">✓</div><h3>Aucune donnée à afficher</h3><p>Les éléments apparaîtront dès que le moteur aura effectué ses premières réconciliations.</p></div>}
 else{
-<div class="table-wrap"><table><thead><tr>@foreach(var col in _columns){<th>@col</th>}</tr></thead><tbody>
-@foreach(var row in _rows){<tr>@foreach(var col in _keys){<td>@Cell(row,col)</td>}</tr>}
+@if(_tab=="incidents" && _editingIncidentId.HasValue)
+{
+ <div class="incident-editor">
+  <div class="panel-heading"><div><h3>Traitement de l'incident</h3><p>Mettre à jour le suivi et conserver une trace de chaque action.</p></div><button class="button-secondary" @onclick="CloseIncidentEditor">Fermer</button></div>
+  <div class="incident-edit-grid">
+   <label>Statut<select @bind="_incidentStatus"><option value="Open">Ouvert</option><option value="InProgress">En cours</option><option value="Resolved">Résolu</option><option value="Closed">Clos</option></select></label>
+   <label>Priorité<select @bind="_incidentSeverity"><option value="Low">Basse</option><option value="Medium">Normale</option><option value="High">Haute</option><option value="Critical">Critique</option></select></label>
+   <label>Assigné à<input @bind="_incidentAssignee" maxlength="150" placeholder="Nom ou équipe" /></label>
+   <label class="incident-comment">Commentaire de résolution<textarea @bind="_incidentComment" maxlength="2000" rows="2" placeholder="Diagnostic, action réalisée, vérification…"></textarea></label>
+  </div>
+  <div class="heading-actions"><button class="button-primary" disabled="@_savingIncident" @onclick="SaveIncidentWorkflowAsync">@(_savingIncident?"Enregistrement…":"Enregistrer le suivi")</button><button class="button-secondary" @onclick="LoadIncidentHistoryAsync">Actualiser l'historique</button></div>
+  @if(_incidentHistory.Count>0)
+  {
+   <div class="incident-history"><h4>Historique</h4>@foreach(var item in _incidentHistory){<div class="incident-history-item"><strong>@item.GetProperty("action").GetString()</strong><span>@item.GetProperty("occurredAtUtc").GetDateTimeOffset().ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span><p>@(item.TryGetProperty("details",out var details)?details.GetString():"")</p></div>}</div>
+  }
+ </div>
+}
+<div class="table-wrap"><table><thead><tr>@foreach(var col in _columns){<th>@col</th>}{@if(_tab=="incidents"){<th>Actions</th>}</tr></thead><tbody>
+@foreach(var row in _rows){<tr>@foreach(var col in _keys){<td>@Cell(row,col)</td>}{@if(_tab=="incidents"){<td><button class="button-secondary button-small" @onclick="() => EditIncident(row)">Gérer</button></td>}</tr>}
 </tbody></table></div>}
 </section>
 @code{
- private bool _resetting; private string _tab="expected"; private DateTime _date=DateTime.Today; private bool _loading=true; private bool _reconciling; private string? _error; private string? _success; private List<JsonElement> _rows=[]; private string[] _columns=[]; private string[] _keys=[];
+ private bool _resetting; private bool _savingIncident; private Guid? _editingIncidentId; private string _incidentStatus="Open"; private string _incidentSeverity="Medium"; private string _incidentAssignee=""; private string _incidentComment=""; private List<JsonElement> _incidentHistory=[]; private string _tab="expected"; private DateTime _date=DateTime.Today; private bool _loading=true; private bool _reconciling; private string? _error; private string? _success; private List<JsonElement> _rows=[]; private string[] _columns=[]; private string[] _keys=[];
  private string TabTitle=>_tab switch{"expected"=>"Fichiers attendus","received"=>"Fichiers détectés","incidents"=>"Incidents de surveillance",_=>"Historique des cycles"};
  private string TabDescription=>_tab switch{"expected"=>"Échéances calculées à partir des règles et de leurs horaires.","received"=>"Fichiers observés dans les dossiers surveillés, après détection.","incidents"=>"Incidents ouverts et résolus : dossier inaccessible, erreur de traitement, etc.",_=>"Exécutions périodiques du moteur de réconciliation."};
  private readonly CancellationTokenSource _refreshCancellation = new();
@@ -30,6 +47,37 @@ else{
   catch(OperationCanceledException) when(cancellationToken.IsCancellationRequested){}
  }
  public async ValueTask DisposeAsync(){_refreshCancellation.Cancel();await _refreshLoop;_refreshCancellation.Dispose();}
+ private void EditIncident(JsonElement row){
+  _editingIncidentId=row.GetProperty("id").GetGuid();
+  _incidentStatus=row.TryGetProperty("status",out var status)?status.GetString()??"Open":"Open";
+  _incidentSeverity=row.TryGetProperty("severity",out var severity)?severity.GetString()??"Medium":"Medium";
+  _incidentAssignee=row.TryGetProperty("assignedTo",out var assignee)&&assignee.ValueKind==JsonValueKind.String?assignee.GetString()??"": "";
+  _incidentComment=row.TryGetProperty("resolutionComment",out var comment)&&comment.ValueKind==JsonValueKind.String?comment.GetString()??"": "";
+  _incidentHistory=[];_ = LoadIncidentHistoryAsync();
+ }
+ private void CloseIncidentEditor(){_editingIncidentId=null;_incidentHistory=[];}
+ private async Task SaveIncidentWorkflowAsync(){
+  if(!_editingIncidentId.HasValue||_savingIncident)return;
+  _savingIncident=true;_error=null;_success=null;
+  try{
+   var api=ClientFactory.CreateClient("FileFlowApi");
+   var payload=new { status=_incidentStatus,severity=_incidentSeverity,assignedTo=_incidentAssignee,resolutionComment=_incidentComment };
+   using var response=await api.PatchAsJsonAsync($"api/monitoring/incidents/{_editingIncidentId}/workflow",payload);
+   var body=await response.Content.ReadAsStringAsync();
+   if(!response.IsSuccessStatusCode)throw new InvalidOperationException($"API {(int)response.StatusCode}: {body}");
+   _success="Suivi de l'incident enregistré.";
+   await LoadAsync();await LoadIncidentHistoryAsync();
+  }catch(Exception ex){_error="Impossible d'enregistrer l'incident : "+ex.Message;}
+  finally{_savingIncident=false;}
+ }
+ private async Task LoadIncidentHistoryAsync(){
+  if(!_editingIncidentId.HasValue)return;
+  try{
+   var api=ClientFactory.CreateClient("FileFlowApi");
+   var items=await api.GetFromJsonAsync<List<JsonElement>>($"api/monitoring/incidents/{_editingIncidentId}/history");
+   _incidentHistory=items??[];
+  }catch(Exception ex){_error="Impossible de charger l'historique : "+ex.Message;}
+ }
  private string TabClass(string t)=>_tab==t?"tab active":"tab";
  private async Task Select(string t){_tab=t;_rows=[];await LoadAsync();}
  private async Task ForceReconciliationAsync(){
