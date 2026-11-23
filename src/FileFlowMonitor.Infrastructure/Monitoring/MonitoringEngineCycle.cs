@@ -310,6 +310,15 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
             x.MonitoringRuleId == ruleId && x.Code == code && x.ResolvedAtUtc == null,
             cancellationToken);
 
-        open?.Resolve(now);
+        if (open is null) return;
+        open.Resolve(now);
+        var workflow = await db.MonitoringIncidentWorkflows
+            .SingleOrDefaultAsync(x => x.MonitoringIncidentId == open.Id, cancellationToken);
+        if (workflow is not null && workflow.Status != "Closed")
+        {
+            workflow.Update("Resolved", null, null, "Résolu automatiquement : condition technique rétablie.", now);
+            db.MonitoringIncidentHistories.Add(new MonitoringIncidentHistory(
+                open.Id, "AutoResolved", "Condition technique rétablie ; incident résolu par le moteur.", now));
+        }
     }
 }
