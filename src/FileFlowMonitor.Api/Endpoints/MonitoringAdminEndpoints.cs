@@ -7,16 +7,9 @@ public static class MonitoringAdminEndpoints
 {
     public static IEndpointRouteBuilder MapMonitoringAdminEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPost("/api/monitoring/reset", async (FileFlowDbContext db, CancellationToken ct) =>
+        endpoints.MapPost("/api/monitoring/reset", async (FileFlowMonitor.Infrastructure.Monitoring.MonitoringEngineCycle cycle, CancellationToken ct) =>
         {
-            await using var transaction = await db.Database.BeginTransactionAsync(ct);
-            await db.MonitoringIncidents.ExecuteDeleteAsync(ct);
-            await db.ExpectedFiles.ExecuteDeleteAsync(ct);
-            await db.ReceivedFiles.ExecuteDeleteAsync(ct);
-            await db.MonitoringExecutions.ExecuteDeleteAsync(ct);
-            await db.ScheduleTimes.ExecuteDeleteAsync(ct);
-            await db.MonitoringRules.ExecuteDeleteAsync(ct);
-            await transaction.CommitAsync(ct);
+            await cycle.ResetDataAsync(ct);
             return Results.Ok(new { message = "Toutes les données de monitoring ont été supprimées.", resetAtUtc = DateTimeOffset.UtcNow });
         })
         .WithTags("Administration")
