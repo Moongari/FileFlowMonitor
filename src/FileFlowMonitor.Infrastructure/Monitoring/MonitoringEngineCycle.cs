@@ -252,10 +252,13 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
 
         if (!alreadyOpen)
         {
-            db.MonitoringIncidents.Add(new MonitoringIncident(
+            var incident = new MonitoringIncident(
                 rule.Id, expected.Id, "EXPECTED_FILE_MISSING",
                 $"Fichier manquant pour le flux « {rule.Name} » : {expected.ExpectedFileName} (échéance {expected.DeadlineAtUtc:yyyy-MM-dd HH:mm} UTC).",
-                now));
+                now);
+            db.MonitoringIncidents.Add(incident);
+            db.MonitoringIncidentHistories.Add(new MonitoringIncidentHistory(
+                incident.Id, "Created", "Incident généré automatiquement : fichier attendu manquant.", now));
         }
     }
 
@@ -289,7 +292,12 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
             cancellationToken);
 
         if (open is null)
-            db.MonitoringIncidents.Add(new MonitoringIncident(ruleId, null, code, message, now));
+        {
+            var incident = new MonitoringIncident(ruleId, null, code, message, now);
+            db.MonitoringIncidents.Add(incident);
+            db.MonitoringIncidentHistories.Add(new MonitoringIncidentHistory(
+                incident.Id, "Created", $"Incident généré automatiquement : {code}.", now));
+        }
     }
 
     private async Task ResolveIncidentAsync(
