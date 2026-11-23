@@ -85,7 +85,7 @@ public sealed class ExpectedFilePlanner
             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
         return templates.Any(template =>
-            string.Equals(ExpandTemplate(template, date, time, time.ToString("HHmmss")),
+            string.Equals(ExpandTemplate(template, date, time, time.ToString("HHmm") + "0"),
                 fileName, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(ExpandTemplate(template, date, time, time.ToString("HHmm") + "0"),
                 fileName, StringComparison.OrdinalIgnoreCase));
@@ -102,7 +102,7 @@ public sealed class ExpectedFilePlanner
             var templates = rule.FileNamePattern
                 .Split(new[] { "\r", "\n", ";" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-            return templates.Select(template => ExpandTemplate(template, date, time, time.ToString("HHmmss")))
+            return templates.Select(template => ExpandTemplate(template, date, time, time.ToString("HHmm") + "0"))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
         }
@@ -126,6 +126,7 @@ public sealed class ExpectedFilePlanner
             .Replace("{DD}", date.ToString("dd"), StringComparison.OrdinalIgnoreCase)
             .Replace("{TIME}", timeToken, StringComparison.OrdinalIgnoreCase)
             .Replace("{TIME5}", time.ToString("HHmm") + "0", StringComparison.OrdinalIgnoreCase)
+            .Replace("{TIME6}", time.ToString("HHmmss"), StringComparison.OrdinalIgnoreCase)
             .Replace("{HH}", time.ToString("HH"), StringComparison.OrdinalIgnoreCase)
             .Replace("{MINUTES}", time.ToString("mm"), StringComparison.OrdinalIgnoreCase)
             .Replace("{SECONDS}", time.ToString("ss"), StringComparison.OrdinalIgnoreCase);
