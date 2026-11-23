@@ -31,8 +31,8 @@ else{
   }
  </div>
 }
-<div class="table-wrap"><table><thead><tr>@foreach(var col in _columns){<th>@col</th>}{@if(_tab=="incidents"){<th>Actions</th>}</tr></thead><tbody>
-@foreach(var row in _rows){<tr>@foreach(var col in _keys){<td>@Cell(row,col)</td>}{@if(_tab=="incidents"){<td><button class="button-secondary button-small" @onclick="() => EditIncident(row)">Gérer</button></td>}</tr>}
+<div class="table-wrap"><table><thead><tr>@foreach(var col in _columns){<th>@col</th>} @if(_tab=="incidents"){<th>Actions</th>}</tr></thead><tbody>
+@foreach(var row in _rows){<tr>@foreach(var col in _keys){<td>@Cell(row,col)</td>} @if(_tab=="incidents"){<td><button class="button-secondary button-small" @onclick="() => EditIncident(row)">Gérer</button></td>}</tr>}
 </tbody></table></div>}
 </section>
 @code{
