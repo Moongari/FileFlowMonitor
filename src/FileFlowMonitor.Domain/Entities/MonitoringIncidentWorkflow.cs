@@ -32,10 +32,11 @@ public sealed class MonitoringIncidentWorkflow
             var next = status.Trim();
             if (next is not ("Open" or "InProgress" or "Resolved" or "Closed"))
                 throw new ArgumentException("Status must be Open, InProgress, Resolved or Closed.", nameof(status));
-            if (Status == "Closed" && next != "Open")
+            var previousStatus = Status;
+            if (previousStatus == "Closed" && next != "Open")
                 throw new InvalidOperationException("A closed incident can only be reopened.");
-            if (next == "Resolved" && Status == "Closed")
-                throw new InvalidOperationException("A closed incident must be reopened before resolution.");
+            if (previousStatus == "Resolved" && next == "InProgress")
+                throw new InvalidOperationException("Reopen a resolved incident before moving it back to InProgress.");
             Status = next;
             if (next == "InProgress" && !AcknowledgedAtUtc.HasValue) AcknowledgedAtUtc = nowUtc;
             if (next == "Resolved") ResolvedAtUtc ??= nowUtc;
@@ -44,7 +45,7 @@ public sealed class MonitoringIncidentWorkflow
                 ResolvedAtUtc ??= nowUtc;
                 ClosedAtUtc = nowUtc;
             }
-            if (next == "Open" && (ResolvedAtUtc.HasValue || ClosedAtUtc.HasValue))
+            if (next == "Open" && previousStatus != "Open")
             {
                 ResolvedAtUtc = null;
                 ClosedAtUtc = null;
