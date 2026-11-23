@@ -225,10 +225,11 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                              x.Status == ExpectedFileStatus.Missing) &&
                             x.ReceivedFileId == null &&
                             planner.MatchesFileName(rule, x, info.Name))
-                // Reused static names are assigned to the closest schedule slot.
-                // Date/time templates normally identify a single occurrence.
-                .OrderBy(x => Math.Abs((x.ExpectedAtUtc - existing.DetectedAtUtc).Ticks))
-                .ThenBy(x => x.ExpectedAtUtc)
+                // Never associate a file with a future schedule slot.
+                // For repeated static names, use the latest eligible occurrence
+                // that was scheduled at or before the file was detected.
+                .Where(x => x.ExpectedAtUtc <= existing.DetectedAtUtc)
+                .OrderByDescending(x => x.ExpectedAtUtc)
                 .FirstOrDefault();
 
             if (expectedFile is not null)
