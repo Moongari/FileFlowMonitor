@@ -140,7 +140,7 @@ else if (_data is not null)
                     @foreach (var file in group)
                     {
                         var status = file.GetProperty("status").GetString() ?? "";
-                        <tr class="expected-file-row @ExpectedRowClass(status)">
+                        <tr class="expected-file-row @FlowColorClass(file.GetProperty("ruleName").GetString()) @ExpectedRowClass(status)">
                             <td><span class="flow-name-tag @FlowColorClass(file.GetProperty("ruleName").GetString())">@file.GetProperty("ruleName").GetString()</span></td>
                             <td>@LocalTime(file, "expectedAtLocal")</td>
                             <td class="path-cell"><span class="expected-file-name">@file.GetProperty("expectedFileName").GetString()</span></td>
