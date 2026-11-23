@@ -247,13 +247,27 @@ public static class MonitoringReadEndpoints
         {
             var incidents = await db.MonitoringIncidents.AsNoTracking().ToListAsync(ct);
             if (openOnly == true) incidents = incidents.Where(x => x.ResolvedAtUtc == null).ToList();
-            var rows = incidents.OrderByDescending(x => x.OccurredAtUtc)
-                .Take(Math.Clamp(limit ?? 100, 1, 500))
-                .Select(x => new
+            var selected = incidents.OrderByDescending(x => x.OccurredAtUtc)
+                .Take(Math.Clamp(limit ?? 100, 1, 500)).ToList();
+            var ids = selected.Select(x => x.Id).ToArray();
+            var workflows = await db.MonitoringIncidentWorkflows.AsNoTracking()
+                .Where(x => ids.Contains(x.MonitoringIncidentId)).ToDictionaryAsync(x => x.MonitoringIncidentId, ct);
+            var rows = selected.Select(x =>
+            {
+                workflows.TryGetValue(x.Id, out var workflow);
+                return new
                 {
                     x.Id, x.MonitoringRuleId, x.ExpectedFileId, x.Code, x.Message,
-                    x.OccurredAtUtc, x.ResolvedAtUtc, isResolved = x.ResolvedAtUtc != null
-                }).ToList();
+                    x.OccurredAtUtc, x.ResolvedAtUtc, isResolved = workflow?.Status is "Resolved" or "Closed" || x.ResolvedAtUtc != null,
+                    status = workflow?.Status ?? (x.ResolvedAtUtc.HasValue ? "Resolved" : "Open"),
+                    severity = workflow?.Severity ?? "Medium",
+                    assignedTo = workflow?.AssignedTo,
+                    acknowledgedAtUtc = workflow?.AcknowledgedAtUtc,
+                    workflowResolvedAtUtc = workflow?.ResolvedAtUtc,
+                    closedAtUtc = workflow?.ClosedAtUtc,
+                    resolutionComment = workflow?.ResolutionComment
+                };
+            }).ToList();
             return Results.Ok(rows);
         })
         .WithName("GetMonitoringIncidents")
