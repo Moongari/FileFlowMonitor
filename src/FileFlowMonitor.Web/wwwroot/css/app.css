@@ -106,3 +106,19 @@
 .expected-file-row.flow-color-6 td:first-child{border-left:5px solid #6574bd}
 .expected-file-row.flow-color-7 td{background-color:#f3f7e9}
 .expected-file-row.flow-color-7 td:first-child{border-left:5px solid #71833a}
+
+
+/* Incident workflow: compact operator controls and readable audit trail. */
+.incident-editor{margin:18px 0;padding:20px;border:1px solid var(--border-color,#dce3ed);border-radius:12px;background:var(--surface-secondary,#f7f9fc)}
+.incident-edit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:16px 0}
+.incident-edit-grid label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:650;color:var(--text-secondary,#536176)}
+.incident-edit-grid input,.incident-edit-grid select,.incident-edit-grid textarea{width:100%;min-width:0;padding:10px 11px;border:1px solid var(--border-color,#ccd5e2);border-radius:8px;background:var(--surface,#fff);color:var(--text-primary,#172235);font:inherit}
+.incident-edit-grid .incident-comment{grid-column:1/-1}
+.incident-edit-grid textarea{resize:vertical}
+.button-small{padding:6px 10px;font-size:12px}
+.incident-history{margin-top:20px;padding-top:14px;border-top:1px solid var(--border-color,#dce3ed)}
+.incident-history h4{margin:0 0 10px}
+.incident-history-item{display:grid;grid-template-columns:minmax(120px,180px) 180px 1fr;gap:12px;padding:9px 0;border-bottom:1px solid var(--border-color,#e5eaf1);font-size:12px}
+.incident-history-item span{color:var(--text-muted,#718096)}
+.incident-history-item p{margin:0;color:var(--text-secondary,#536176)}
+@media(max-width:760px){.incident-edit-grid{grid-template-columns:1fr}.incident-edit-grid .incident-comment{grid-column:auto}.incident-history-item{grid-template-columns:1fr;gap:3px}}
