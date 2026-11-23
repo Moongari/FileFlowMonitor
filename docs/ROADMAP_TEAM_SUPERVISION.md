@@ -6,6 +6,19 @@
 
 Ce document complète la roadmap technique générale. Il décrit une trajectoire incrémentale fondée sur l'état du dépôt audité le 23 novembre 2026.
 
+## Avancement — 23 novembre 2026
+
+Le premier incrément du workflow d'incidents est poussé sur `feature/monitoring-engine` :
+- cycle opérateur `Open → InProgress → Resolved → Closed`, avec réouverture explicite ;
+- priorités Low / Medium / High / Critical et assignation libre ;
+- commentaire de résolution ;
+- historique des changements et des résolutions automatiques ;
+- endpoints de workflow et de chronologie ;
+- interface de gestion dans l'onglet Incidents ;
+- réinitialisation des données incluant le workflow et son historique.
+
+Cette livraison est une V1 : le numéro lisible, les commentaires multiples, les filtres avancés, la pagination et la gestion d'équipes/annuaire restent à faire. Le schéma SQLite est étendu de façon additive, mais une véritable stratégie EF Core migrations reste nécessaire avant de poursuivre les évolutions de schéma.
+
 ## 1. État constaté dans le dépôt
 
 | Domaine | État constaté | Conséquence |
@@ -14,13 +27,13 @@ Ce document complète la roadmap technique générale. Il décrit une trajectoir
 | Occurrences attendues | `ExpectedFile` porte horaire, échéance, réception et statut | Base des KPI |
 | Réceptions | `ReceivedFile` est persisté | Base de l'historique de réception |
 | Moteur | Cycle périodique et watcher présents | Ne pas réécrire sans tests de non-régression |
-| Incidents | `MonitoringIncident` contient code, message, occurrence et résolution | Incident technique simple, pas encore un workflow d'équipe |
-| Historique d'incident | Pas d'entité d'historique dédiée constatée | À ajouter |
-| Affectation / prise en charge | Non présents dans le modèle d'incident actuel | À ajouter |
+| Incidents | `MonitoringIncident` + `MonitoringIncidentWorkflow` (statut, priorité, assignation, prise en charge, résolution, clôture) | Workflow V1 livré ; filtres avancés et enrichissement restent à faire |
+| Historique d'incident | `MonitoringIncidentHistory` conserve créations, actions opérateur et résolutions automatiques | V1 livré |
+| Affectation / prise en charge | Responsable et date d'acquittement dans le workflow | V1 livré |
 | SLA configurable | Pas de politique SLA distincte constatée | À concevoir séparément de la période de grâce |
 | Statistiques historiques | Vue de supervision actuelle centrée sur une journée | Nouvel endpoint et nouvel écran nécessaires |
 | Interface | La page d'accueil affiche déjà des KPI journaliers, les flux, les attentes, les incidents récents et les cycles | Faire évoluer l'existant, éviter une réécriture complète |
-| Persistance | SQLite initialisé avec `EnsureCreated` | Introduire une stratégie de migrations avant toute modification de schéma |
+| Persistance | SQLite initialisé avec `EnsureCreated` ; tables workflow ajoutées par SQL idempotent `CREATE TABLE IF NOT EXISTS` | Compatible avec les bases existantes ; migrations EF Core conventionnelles toujours à traiter |
 
 ## 2. Principes d'architecture
 
