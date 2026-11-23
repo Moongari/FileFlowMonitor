@@ -87,6 +87,21 @@ public sealed class ExpectedFilePlannerTests
     }
 
     [Fact]
+    public void Plan_Expands_Time5_Token_As_HHmm0()
+    {
+        var rule = new MonitoringRule("Citi legacy feed", @"D:\Inbound", MatchingMode.FileNameTemplate);
+        rule.ConfigureMatching(MatchingMode.FileNameTemplate, "Trade1_{DATE}_{TIME5}.csv");
+        rule.ConfigureCalendar(WeekDays.EveryDay, "UTC");
+        rule.SetScheduleTimes([new TimeOnly(9, 0), new TimeOnly(10, 0), new TimeOnly(11, 0)]);
+
+        var result = new ExpectedFilePlanner().Plan(rule, new DateOnly(2026, 11, 21));
+
+        Assert.Equal(
+            ["Trade1_20261121_09000.csv", "Trade1_20261121_10000.csv", "Trade1_20261121_11000.csv"],
+            result.Select(x => x.ExpectedFileName));
+    }
+
+    [Fact]
     public void Plan_Expands_Hour_Minute_And_Second_Tokens()
     {
         var rule = new MonitoringRule("Hourly", @"D:\\Inbound", MatchingMode.FileNameTemplate);
