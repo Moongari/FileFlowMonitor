@@ -352,8 +352,7 @@ public sealed class MonitoringEngineTests
                 var expected = Assert.Single((await verify.ExpectedFiles
                     .Where(x => x.MonitoringRuleId == ruleId)
                     .ToListAsync()).Where(x => x.ExpectedAtUtc <= DateTimeOffset.UtcNow));
-                Assert.Equal(fileName.Replace($"{dateToken}_{schedule:HHmm}0", $"{dateToken}_{schedule:HHmmss}"),
-                    expected.ExpectedFileName);
+                Assert.Equal(fileName, expected.ExpectedFileName);
                 Assert.Equal(ExpectedFileStatus.Received, expected.Status);
                 Assert.NotNull(expected.ReceivedFileId);
                 Assert.Single(await verify.ReceivedFiles.Where(x => x.MonitoringRuleId == ruleId).ToListAsync());
