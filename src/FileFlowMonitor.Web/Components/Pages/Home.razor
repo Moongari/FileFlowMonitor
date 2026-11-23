@@ -74,20 +74,46 @@ else if (_data is not null)
     </section>
 
     <section class="panel">
-        <div class="panel-heading">
+        <div class="panel-heading expected-panel-heading">
             <div><h2>Fichiers attendus — @_selectedDate.ToString("dd/MM/yyyy")</h2><p>Chaque occurrence est affichée individuellement, y compris lorsqu'elle est manquante.</p></div>
-            <a class="text-link" href="/operations">Historique détaillé →</a>
+            <div class="expected-table-actions">
+                <label class="status-filter-label">Filtrer par statut
+                    <select class="status-filter" @bind="_statusFilter">
+                        <option value="">Tous les statuts</option>
+                        <option value="Received">Reçu à l'heure</option>
+                        <option value="Late">En retard</option>
+                        <option value="Missing">Manquant</option>
+                        <option value="Waiting">En attente</option>
+                        <option value="Scheduled">Planifié</option>
+                        <option value="Invalid">Invalide</option>
+                        <option value="Duplicate">Doublon</option>
+                        <option value="Cancelled">Annulé</option>
+                    </select>
+                </label>
+                <a class="text-link" href="/operations">Historique détaillé →</a>
+            </div>
         </div>
-        @if (_data.RootElement.GetProperty("expectedFiles").GetArrayLength() == 0)
+        @{
+            var allExpectedFiles = _data.RootElement.GetProperty("expectedFiles").EnumerateArray().ToArray();
+            var visibleExpectedFiles = allExpectedFiles
+                .Where(file => string.IsNullOrEmpty(_statusFilter) || file.GetProperty("status").GetString() == _statusFilter)
+                .ToArray();
+        }
+        @if (allExpectedFiles.Length == 0)
         {
             <div class="empty-inline"><span>i</span><strong>Aucune attente pour cette journée</strong><small>Vérifiez les jours actifs et les horaires de vos règles.</small></div>
         }
+        else if (visibleExpectedFiles.Length == 0)
+        {
+            <div class="empty-inline"><span>✓</span><strong>Aucun fichier avec ce statut</strong><small>Modifiez le filtre pour afficher d'autres fichiers.</small></div>
+        }
         else
         {
+            <div class="expected-filter-summary">Affichage de <strong>@visibleExpectedFiles.Length</strong> fichier(s) sur <strong>@allExpectedFiles.Length</strong>.</div>
             <div class="table-wrap"><table>
                 <thead><tr><th>Flux</th><th>Heure prévue</th><th>Fichier attendu</th><th>Échéance</th><th>Réception</th><th>Statut</th></tr></thead>
                 <tbody>
-                @foreach (var group in _data.RootElement.GetProperty("expectedFiles").EnumerateArray()
+                @foreach (var group in visibleExpectedFiles
                     .GroupBy(file => new
                     {
                         RuleName = file.GetProperty("ruleName").GetString(),
@@ -158,6 +184,7 @@ else if (_data is not null)
     private string? _error;
     private DateTime _selectedDate = DateTime.Today;
     private DateTimeOffset _generatedAt;
+    private string _statusFilter = "";
     private readonly CancellationTokenSource _refreshCancellation = new();
     private Task _refreshLoop = Task.CompletedTask;
 
