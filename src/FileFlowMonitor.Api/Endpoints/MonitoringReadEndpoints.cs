@@ -117,9 +117,15 @@ public static class MonitoringReadEndpoints
             }).ToList();
 
             var allIncidents = await db.MonitoringIncidents.AsNoTracking().ToListAsync(ct);
-            var incidents = allIncidents.Where(x => x.ResolvedAtUtc == null)
+            var incidentWorkflows = await db.MonitoringIncidentWorkflows.AsNoTracking()
+                .ToDictionaryAsync(x => x.MonitoringIncidentId, ct);
+            var openIncidentsForOverview = allIncidents.Where(x =>
+                incidentWorkflows.TryGetValue(x.Id, out var workflow)
+                    ? workflow.Status is not ("Resolved" or "Closed")
+                    : x.ResolvedAtUtc == null).ToList();
+            var incidents = openIncidentsForOverview
                 .OrderByDescending(x => x.OccurredAtUtc).Take(10).ToList();
-            var openIncidentCount = allIncidents.Count(x => x.ResolvedAtUtc == null &&
+            var openIncidentCount = openIncidentsForOverview.Count(x =>
                 zones.TryGetValue(x.MonitoringRuleId, out var incidentZone) &&
                 DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(x.OccurredAtUtc, incidentZone).DateTime) ==
                 (date ?? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, incidentZone).DateTime)));
