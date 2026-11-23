@@ -225,8 +225,10 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
                              x.Status == ExpectedFileStatus.Missing) &&
                             x.ReceivedFileId == null &&
                             planner.MatchesFileName(rule, x, info.Name))
-                .OrderByDescending(x => x.ExpectedAtUtc <= existing.DetectedAtUtc)
-                .ThenByDescending(x => x.ExpectedAtUtc)
+                // Reused static names are assigned to the closest schedule slot.
+                // Date/time templates normally identify a single occurrence.
+                .OrderBy(x => Math.Abs((x.ExpectedAtUtc - existing.DetectedAtUtc).Ticks))
+                .ThenBy(x => x.ExpectedAtUtc)
                 .FirstOrDefault();
 
             if (expectedFile is not null)
