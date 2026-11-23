@@ -1,6 +1,7 @@
 using FileFlowMonitor.Infrastructure.Monitoring;
 using FileFlowMonitor.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
 
 namespace FileFlowMonitor.Api.Services;
 
@@ -13,7 +14,7 @@ public sealed class FileArrivalWatcherService(
     ILogger<FileArrivalWatcherService> logger) : BackgroundService
 {
     private readonly Dictionary<Guid, FileSystemWatcher> _watchers = new();
-    private readonly Dictionary<Guid, SemaphoreSlim> _triggerGates = new();
+    private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _triggerGates = new();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -37,7 +38,7 @@ public sealed class FileArrivalWatcherService(
             .ToListAsync(ct);
 
         var current = rules.Where(x => Directory.Exists(x.FolderPath))
-            .GroupBy(x => x.Id).Select(x => x.First()).ToDictionary(x => x.Id, x.FolderPath);
+            .GroupBy(x => x.Id).Select(group => group.First()).ToDictionary(rule => rule.Id, rule => rule.FolderPath);
 
         foreach (var id in _watchers.Keys.Where(id => !current.ContainsKey(id)).ToArray())
             RemoveWatcher(id);
