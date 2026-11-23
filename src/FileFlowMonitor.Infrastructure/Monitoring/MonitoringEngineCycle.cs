@@ -27,6 +27,27 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
         }
     }
 
+    public async Task ResetDataAsync(CancellationToken cancellationToken = default)
+    {
+        await ExecutionGate.WaitAsync(cancellationToken);
+        try
+        {
+            await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+            await db.MonitoringIncidents.ExecuteDeleteAsync(cancellationToken);
+            await db.ExpectedFiles.ExecuteDeleteAsync(cancellationToken);
+            await db.ReceivedFiles.ExecuteDeleteAsync(cancellationToken);
+            await db.MonitoringExecutions.ExecuteDeleteAsync(cancellationToken);
+            await db.ScheduleTimes.ExecuteDeleteAsync(cancellationToken);
+            await db.MonitoringRules.ExecuteDeleteAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        finally
+        {
+            ExecutionGate.Release();
+        }
+    }
+
+
     private async Task ExecuteCoreAsync(CancellationToken cancellationToken, Guid? onlyRuleId)
     {
         var now = DateTimeOffset.UtcNow;
