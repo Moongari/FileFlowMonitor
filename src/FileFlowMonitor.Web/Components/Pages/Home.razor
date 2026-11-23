@@ -52,7 +52,7 @@ else if (_data is not null)
             @foreach (var rule in _data.RootElement.GetProperty("ruleSummaries").EnumerateArray())
             {
                 var health = rule.GetProperty("healthStatus").GetString() ?? "Unknown";
-                <article class="flow-card">
+                <article class="flow-card @FlowColorClass(rule.GetProperty("name").GetString())">
                     <div class="flow-card-heading">
                         <div><h3>@rule.GetProperty("name").GetString()</h3><span class="flow-path">@rule.GetProperty("folderPath").GetString()</span></div>
                         <span class="pill @HealthClass(health)">@HealthLabel(health)</span>
@@ -124,7 +124,7 @@ else if (_data is not null)
                     var lateCount = group.Count(file => file.GetProperty("status").GetString() == "Late");
                     var missingCount = group.Count(file => file.GetProperty("status").GetString() == "Missing");
                     var pendingCount = group.Count(file => file.GetProperty("status").GetString() is "Waiting" or "Scheduled");
-                    <tr class="expected-group-row">
+                    <tr class="expected-group-row @FlowColorClass(group.Key.RuleName)">
                         <td colspan="6">
                             <div class="expected-group-heading">
                                 <strong>@group.Key.RuleName · @DateTime.Parse(group.Key.ExpectedAt!).ToString("HH:mm")</strong>
@@ -141,7 +141,7 @@ else if (_data is not null)
                     {
                         var status = file.GetProperty("status").GetString() ?? "";
                         <tr class="expected-file-row @ExpectedRowClass(status)">
-                            <td><strong>@file.GetProperty("ruleName").GetString()</strong></td>
+                            <td><span class="flow-name-tag @FlowColorClass(file.GetProperty("ruleName").GetString())">@file.GetProperty("ruleName").GetString()</span></td>
                             <td>@LocalTime(file, "expectedAtLocal")</td>
                             <td class="path-cell"><span class="expected-file-name">@file.GetProperty("expectedFileName").GetString()</span></td>
                             <td>@LocalTime(file, "deadlineAtLocal")</td>
@@ -223,6 +223,16 @@ else if (_data is not null)
         "Healthy" => "pill-green", "Delayed" => "pill-orange", "Disabled" => "pill-muted",
         _ => "pill-red"
     };
+    // Stable palette based on the rule name: a flux keeps the same color after refresh/restart.
+    private static string FlowColorClass(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "flow-color-0";
+        var hash = 17;
+        foreach (var character in name.Trim().ToUpperInvariant())
+            hash = (hash * 31 + character) & 0x7fffffff;
+        return $"flow-color-{hash % 8}";
+    }
+
     private static string ExpectedRowClass(string value) => value switch
     {
         "Received" => "expected-row-received",
