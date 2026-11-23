@@ -108,7 +108,7 @@ public sealed class MonitoringEngineTests
                 var service = new MonitoringRuleService(new MonitoringRuleRepository(setup));
                 var rule = await service.CreateAsync(new MonitoringRuleConfiguration(
                     "Citi stable reconciliation", folder, MatchingMode.ExactName, null, 1,
-                    [fileName], ["csv"], [new TimeOnly(18, 0)], WeekDays.EveryDay,
+                    [fileName], ["csv"], [TimeOnly.FromDateTime(DateTime.UtcNow.AddHours(6))], WeekDays.EveryDay,
                     TimeZoneInfo.Utc.Id, 0, 0, true));
                 ruleId = rule.Id;
 
