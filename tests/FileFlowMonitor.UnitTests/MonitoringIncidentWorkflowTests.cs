@@ -52,6 +52,17 @@ public sealed class MonitoringIncidentWorkflowTests
     }
 
     [Fact]
+    public void ResolvedIncident_MustBeReopenedBeforeReturningToInProgress()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var workflow = new MonitoringIncidentWorkflow(Guid.NewGuid(), now);
+        workflow.Update("Resolved", null, null, null, now.AddMinutes(1));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            workflow.Update("InProgress", null, null, null, now.AddMinutes(2)));
+    }
+
+    [Fact]
     public void ClosedIncident_CannotBeChangedWithoutReopening()
     {
         var workflow = new MonitoringIncidentWorkflow(Guid.NewGuid(), DateTimeOffset.UtcNow);
