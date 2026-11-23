@@ -33,6 +33,8 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
         try
         {
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+            await db.MonitoringIncidentHistories.ExecuteDeleteAsync(cancellationToken);
+            await db.MonitoringIncidentWorkflows.ExecuteDeleteAsync(cancellationToken);
             await db.MonitoringIncidents.ExecuteDeleteAsync(cancellationToken);
             await db.ExpectedFiles.ExecuteDeleteAsync(cancellationToken);
             await db.ReceivedFiles.ExecuteDeleteAsync(cancellationToken);
