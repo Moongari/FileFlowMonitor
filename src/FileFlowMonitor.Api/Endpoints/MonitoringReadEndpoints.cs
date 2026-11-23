@@ -261,12 +261,12 @@ public static class MonitoringReadEndpoints
                 return new
                 {
                     x.Id, x.MonitoringRuleId, x.ExpectedFileId, x.Code, x.Message,
-                    x.OccurredAtUtc, x.ResolvedAtUtc, isResolved = workflow?.Status is "Resolved" or "Closed" || x.ResolvedAtUtc != null,
+                    x.OccurredAtUtc, x.ResolvedAtUtc, isResolved = workflow is not null ? workflow.Status is "Resolved" or "Closed" : x.ResolvedAtUtc != null,
                     status = workflow?.Status ?? (x.ResolvedAtUtc.HasValue ? "Resolved" : "Open"),
                     severity = workflow?.Severity ?? "Medium",
                     assignedTo = workflow?.AssignedTo,
                     acknowledgedAtUtc = workflow?.AcknowledgedAtUtc,
-                    workflowResolvedAtUtc = workflow?.ResolvedAtUtc,
+                    resolvedAtUtc = workflow is not null ? workflow.ResolvedAtUtc : x.ResolvedAtUtc,
                     closedAtUtc = workflow?.ClosedAtUtc,
                     resolutionComment = workflow?.ResolutionComment
                 };
