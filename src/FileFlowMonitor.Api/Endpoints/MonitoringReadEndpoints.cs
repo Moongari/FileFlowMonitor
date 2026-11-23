@@ -252,6 +252,8 @@ public static class MonitoringReadEndpoints
         group.MapGet("/incidents", async (FileFlowDbContext db, bool? openOnly, int? limit, CancellationToken ct) =>
         {
             var incidents = await db.MonitoringIncidents.AsNoTracking().ToListAsync(ct);
+            var ruleNames = await db.MonitoringRules.AsNoTracking()
+                .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
             var workflows = await db.MonitoringIncidentWorkflows.AsNoTracking()
                 .ToDictionaryAsync(x => x.MonitoringIncidentId, ct);
             if (openOnly == true)
@@ -266,8 +268,8 @@ public static class MonitoringReadEndpoints
                 workflows.TryGetValue(x.Id, out var workflow);
                 return new
                 {
-                    x.Id, x.MonitoringRuleId, x.ExpectedFileId, x.Code, x.Message,
-                    x.OccurredAtUtc, x.ResolvedAtUtc, isResolved = workflow is not null ? workflow.Status is "Resolved" or "Closed" : x.ResolvedAtUtc != null,
+                    x.Id, x.MonitoringRuleId, ruleName = ruleNames.GetValueOrDefault(x.MonitoringRuleId, "Règle inconnue"),
+                    x.ExpectedFileId, x.Code, x.Message, x.OccurredAtUtc, x.ResolvedAtUtc, isResolved = workflow is not null ? workflow.Status is "Resolved" or "Closed" : x.ResolvedAtUtc != null,
                     status = workflow?.Status ?? (x.ResolvedAtUtc.HasValue ? "Resolved" : "Open"),
                     severity = workflow?.Severity ?? "Medium",
                     assignedTo = workflow?.AssignedTo,
