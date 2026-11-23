@@ -80,11 +80,13 @@ public static class MonitoringIncidentEndpoints
         {
             var exists = await db.MonitoringIncidents.AnyAsync(x => x.Id == id, ct);
             if (!exists) return Results.NotFound(new { message = "Incident introuvable." });
-            var history = await db.MonitoringIncidentHistories.AsNoTracking()
-                .Where(x => x.MonitoringIncidentId == id)
+            // SQLite cannot order DateTimeOffset values server-side; sort the small audit trail in memory.
+            var history = (await db.MonitoringIncidentHistories.AsNoTracking()
+                    .Where(x => x.MonitoringIncidentId == id)
+                    .ToListAsync(ct))
                 .OrderByDescending(x => x.OccurredAtUtc)
                 .Select(x => new { x.Id, x.Action, x.Details, x.OccurredAtUtc })
-                .ToListAsync(ct);
+                .ToList();
             return Results.Ok(history);
         })
         .WithName("GetMonitoringIncidentHistory")
