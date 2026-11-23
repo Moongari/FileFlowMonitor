@@ -58,3 +58,31 @@
 .expected-row-late td:first-child{box-shadow:inset 4px 0 #d9952c}
 .expected-row-received td:first-child{box-shadow:inset 4px 0 #21a675}
 @media(max-width:720px){.expected-group-heading{align-items:flex-start;flex-direction:column}.expected-group-summary{gap:5px}}
+
+
+/* Couleurs d'identification stables par flux (classe flow-color-N générée depuis le nom de la règle). */
+.flow-card.flow-color-0{border-left:5px solid #3976d5;background:linear-gradient(90deg,#edf4ff 0%,#fff 42%)}
+.flow-color-0.expected-group-row td{background:#edf4ff;border-top-color:#3976d555;border-left:4px solid #3976d5}
+.flow-name-tag.flow-color-0{display:inline-flex;align-items:center;padding:4px 8px;border-radius:5px;background:#edf4ff;color:#3976d5;border-left:3px solid #3976d5;font-weight:700;white-space:nowrap}
+.flow-card.flow-color-1{border-left:5px solid #168b70;background:linear-gradient(90deg,#eaf7f2 0%,#fff 42%)}
+.flow-color-1.expected-group-row td{background:#eaf7f2;border-top-color:#168b7055;border-left:4px solid #168b70}
+.flow-name-tag.flow-color-1{display:inline-flex;align-items:center;padding:4px 8px;border-radius:5px;background:#eaf7f2;color:#168b70;border-left:3px solid #168b70;font-weight:700;white-space:nowrap}
+.flow-card.flow-color-2{border-left:5px solid #8959bd;background:linear-gradient(90deg,#f4effb 0%,#fff 42%)}
+.flow-color-2.expected-group-row td{background:#f4effb;border-top-color:#8959bd55;border-left:4px solid #8959bd}
+.flow-name-tag.flow-color-2{display:inline-flex;align-items:center;padding:4px 8px;border-radius:5px;background:#f4effb;color:#8959bd;border-left:3px solid #8959bd;font-weight:700;white-space:nowrap}
+.flow-card.flow-color-3{border-left:5px solid #bd7a29;background:linear-gradient(90deg,#fff5e8 0%,#fff 42%)}
+.flow-color-3.expected-group-row td{background:#fff5e8;border-top-color:#bd7a2955;border-left:4px solid #bd7a29}
+.flow-name-tag.flow-color-3{display:inline-flex;align-items:center;padding:4px 8px;border-radius:5px;background:#fff5e8;color:#bd7a29;border-left:3px solid #bd7a29;font-weight:700;white-space:nowrap}
+.flow-card.flow-color-4{border-left:5px solid #c05268;background:linear-gradient(90deg,#fff0f2 0%,#fff 42%)}
+.flow-color-4.expected-group-row td{background:#fff0f2;border-top-color:#c0526855;border-left:4px solid #c05268}
+.flow-name-tag.flow-color-4{display:inline-flex;align-items:center;padding:4px 8px;border-radius:5px;background:#fff0f2;color:#c05268;border-left:3px solid #c05268;font-weight:700;white-space:nowrap}
+.flow-card.flow-color-5{border-left:5px solid #168b9b;background:linear-gradient(90deg,#eaf7fa 0%,#fff 42%)}
+.flow-color-5.expected-group-row td{background:#eaf7fa;border-top-color:#168b9b55;border-left:4px solid #168b9b}
+.flow-name-tag.flow-color-5{display:inline-flex;align-items:center;padding:4px 8px;border-radius:5px;background:#eaf7fa;color:#168b9b;border-left:3px solid #168b9b;font-weight:700;white-space:nowrap}
+.flow-card.flow-color-6{border-left:5px solid #6574bd;background:linear-gradient(90deg,#eff1fc 0%,#fff 42%)}
+.flow-color-6.expected-group-row td{background:#eff1fc;border-top-color:#6574bd55;border-left:4px solid #6574bd}
+.flow-name-tag.flow-color-6{display:inline-flex;align-items:center;padding:4px 8px;border-radius:5px;background:#eff1fc;color:#6574bd;border-left:3px solid #6574bd;font-weight:700;white-space:nowrap}
+.flow-card.flow-color-7{border-left:5px solid #71833a;background:linear-gradient(90deg,#f3f7e9 0%,#fff 42%)}
+.flow-color-7.expected-group-row td{background:#f3f7e9;border-top-color:#71833a55;border-left:4px solid #71833a}
+.flow-name-tag.flow-color-7{display:inline-flex;align-items:center;padding:4px 8px;border-radius:5px;background:#f3f7e9;color:#71833a;border-left:3px solid #71833a;font-weight:700;white-space:nowrap}
+.flow-card{transition:border-color .15s ease,box-shadow .15s ease}.flow-card:hover{box-shadow:0 3px 12px #1c315012}.flow-name-tag{font-size:10px}
