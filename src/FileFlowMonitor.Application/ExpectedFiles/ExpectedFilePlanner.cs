@@ -87,7 +87,7 @@ public sealed class ExpectedFilePlanner
         return templates.Any(template =>
             string.Equals(ExpandTemplate(template, date, time, time.ToString("HHmm") + "0"),
                 fileName, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(ExpandTemplate(template, date, time, time.ToString("HHmm") + "0"),
+            string.Equals(ExpandTemplate(template, date, time, time.ToString("HHmmss")),
                 fileName, StringComparison.OrdinalIgnoreCase));
     }
 
