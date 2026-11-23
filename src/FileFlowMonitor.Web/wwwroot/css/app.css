@@ -86,3 +86,23 @@
 .flow-color-7.expected-group-row td{background:#f3f7e9;border-top-color:#71833a55;border-left:4px solid #71833a}
 .flow-name-tag.flow-color-7{display:inline-flex;align-items:center;padding:4px 8px;border-radius:5px;background:#f3f7e9;color:#71833a;border-left:3px solid #71833a;font-weight:700;white-space:nowrap}
 .flow-card{transition:border-color .15s ease,box-shadow .15s ease}.flow-card:hover{box-shadow:0 3px 12px #1c315012}.flow-name-tag{font-size:10px}
+
+
+/* Priorité visuelle des couleurs de flux dans les lignes de fichiers.
+   Les badges conservent la couleur du statut (retard/manquant/reçu). */
+.expected-file-row.flow-color-0 td{background-color:#edf4ff}
+.expected-file-row.flow-color-0 td:first-child{border-left:5px solid #3976d5}
+.expected-file-row.flow-color-1 td{background-color:#eaf7f2}
+.expected-file-row.flow-color-1 td:first-child{border-left:5px solid #168b70}
+.expected-file-row.flow-color-2 td{background-color:#f4effb}
+.expected-file-row.flow-color-2 td:first-child{border-left:5px solid #8959bd}
+.expected-file-row.flow-color-3 td{background-color:#fff5e8}
+.expected-file-row.flow-color-3 td:first-child{border-left:5px solid #bd7a29}
+.expected-file-row.flow-color-4 td{background-color:#fff0f2}
+.expected-file-row.flow-color-4 td:first-child{border-left:5px solid #c05268}
+.expected-file-row.flow-color-5 td{background-color:#eaf7fa}
+.expected-file-row.flow-color-5 td:first-child{border-left:5px solid #168b9b}
+.expected-file-row.flow-color-6 td{background-color:#eff1fc}
+.expected-file-row.flow-color-6 td:first-child{border-left:5px solid #6574bd}
+.expected-file-row.flow-color-7 td{background-color:#f3f7e9}
+.expected-file-row.flow-color-7 td:first-child{border-left:5px solid #71833a}
