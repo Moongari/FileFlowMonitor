@@ -200,6 +200,51 @@ public sealed class MonitoringRuleApiTests
     }
 
     /// <summary>Remplace la connexion SQLite de l'application par une base en mémoire partagée.</summary>
+    [Fact]
+    public async Task Incident_Workflow_Updates_Status_Assignment_And_Audit_History()
+    {
+        await using var factory = new MonitoringRuleApiFactory();
+        using var client = factory.CreateClient();
+        Guid incidentId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<FileFlowDbContext>();
+            await db.Database.EnsureCreatedAsync();
+            var rule = new MonitoringRule("Incident API test", Path.GetTempPath(), MatchingMode.ExactName);
+            var incident = new MonitoringIncident(rule.Id, null, "TEST_INCIDENT", "Incident de test", DateTimeOffset.UtcNow);
+            db.MonitoringRules.Add(rule);
+            db.MonitoringIncidents.Add(incident);
+            await db.SaveChangesAsync();
+            incidentId = incident.Id;
+        }
+
+        var update = await client.PatchAsJsonAsync($"/api/monitoring/incidents/{incidentId}/workflow", new
+        {
+            status = "InProgress", severity = "High", assignedTo = "Support N2", resolutionComment = (string?)null
+        });
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+
+        var list = await client.GetFromJsonAsync<JsonElement>("/api/monitoring/incidents?openOnly=true");
+        var row = Assert.Single(list.EnumerateArray());
+        Assert.Equal("InProgress", row.GetProperty("status").GetString());
+        Assert.Equal("High", row.GetProperty("severity").GetString());
+        Assert.Equal("Support N2", row.GetProperty("assignedTo").GetString());
+
+        var resolve = await client.PatchAsJsonAsync($"/api/monitoring/incidents/{incidentId}/workflow", new
+        {
+            status = "Resolved", severity = (string?)null, assignedTo = (string?)null, resolutionComment = "Fichier reçu"
+        });
+        Assert.Equal(HttpStatusCode.OK, resolve.StatusCode);
+
+        var openOnly = await client.GetFromJsonAsync<JsonElement>("/api/monitoring/incidents?openOnly=true");
+        Assert.Equal(0, openOnly.GetArrayLength());
+
+        var history = await client.GetFromJsonAsync<JsonElement>($"/api/monitoring/incidents/{incidentId}/history");
+        Assert.Equal(3, history.GetArrayLength());
+        Assert.Contains(history.EnumerateArray(), item => item.GetProperty("action").GetString() == "WorkflowCreated");
+        Assert.Contains(history.EnumerateArray(), item => item.GetProperty("action").GetString() == "WorkflowUpdated");
+    }
+
     private sealed class MonitoringRuleApiFactory : WebApplicationFactory<Program>
     {
         private readonly SqliteConnection _connection = new("Data Source=:memory:");
