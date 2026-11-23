@@ -30,7 +30,7 @@ public static class MonitoringIncidentEndpoints
             var now = DateTimeOffset.UtcNow;
             if (workflow is null)
             {
-                workflow = new MonitoringIncidentWorkflow(id, incident.OccurredAtUtc);
+                workflow = new MonitoringIncidentWorkflow(id, now);
                 db.MonitoringIncidentWorkflows.Add(workflow);
                 db.MonitoringIncidentHistories.Add(new MonitoringIncidentHistory(id, "WorkflowCreated", "Initialisation du suivi opérateur.", now));
             }
