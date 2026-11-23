@@ -47,18 +47,24 @@ await using (var scope = app.Services.CreateAsyncScope())
             ResolutionComment TEXT NULL,
             CreatedAtUtc TEXT NOT NULL,
             UpdatedAtUtc TEXT NOT NULL
-        );
+        )
+        """);
+    await db.Database.ExecuteSqlRawAsync("""
         CREATE INDEX IF NOT EXISTS IX_MonitoringIncidentWorkflows_Status_Severity
-            ON MonitoringIncidentWorkflows (Status, Severity);
+            ON MonitoringIncidentWorkflows (Status, Severity)
+        """);
+    await db.Database.ExecuteSqlRawAsync("""
         CREATE TABLE IF NOT EXISTS MonitoringIncidentHistories (
             Id TEXT NOT NULL CONSTRAINT PK_MonitoringIncidentHistories PRIMARY KEY,
             MonitoringIncidentId TEXT NOT NULL,
             Action TEXT NOT NULL,
             Details TEXT NULL,
             OccurredAtUtc TEXT NOT NULL
-        );
+        )
+        """);
+    await db.Database.ExecuteSqlRawAsync("""
         CREATE INDEX IF NOT EXISTS IX_MonitoringIncidentHistories_MonitoringIncidentId_OccurredAtUtc
-            ON MonitoringIncidentHistories (MonitoringIncidentId, OccurredAtUtc);
+            ON MonitoringIncidentHistories (MonitoringIncidentId, OccurredAtUtc)
         """);
 
 }
