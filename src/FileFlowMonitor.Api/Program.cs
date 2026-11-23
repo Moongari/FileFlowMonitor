@@ -94,6 +94,7 @@ app.MapGet("/health/database", async (FileFlowDbContext db, CancellationToken ct
 
 app.MapMonitoringRuleEndpoints();
 app.MapMonitoringReadEndpoints();
+app.MapMonitoringIncidentEndpoints();
 app.MapMonitoringAdminEndpoints();
 app.Run();
 
