@@ -13,6 +13,7 @@ var connectionString = builder.Configuration.GetConnectionString("FileFlow") ?? 
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<MonitoringRuleService>();
 builder.Services.AddHostedService<MonitoringBackgroundService>();
+builder.Services.AddHostedService<FileArrivalWatcherService>();
 
 // Swagger expose le contrat OpenAPI et les commentaires XML en développement.
 builder.Services.AddEndpointsApiExplorer();
