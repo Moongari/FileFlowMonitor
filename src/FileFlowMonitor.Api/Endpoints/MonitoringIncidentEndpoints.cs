@@ -22,6 +22,9 @@ public static class MonitoringIncidentEndpoints
         {
             var incident = await db.MonitoringIncidents.SingleOrDefaultAsync(x => x.Id == id, ct);
             if (incident is null) return Results.NotFound(new { message = "Incident introuvable." });
+            if (request.Status is null && request.Severity is null &&
+                request.AssignedTo is null && request.ResolutionComment is null)
+                return Results.BadRequest(new { message = "Au moins un champ doit être fourni." });
 
             var workflow = await db.MonitoringIncidentWorkflows.SingleOrDefaultAsync(x => x.MonitoringIncidentId == id, ct);
             var now = DateTimeOffset.UtcNow;
