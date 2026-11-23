@@ -32,7 +32,7 @@ else{
  </div>
 }
 <div class="table-wrap"><table><thead><tr>@foreach(var col in _columns){<th>@col</th>} @if(_tab=="incidents"){<th>Actions</th>}</tr></thead><tbody>
-@foreach(var row in _rows){<tr>@foreach(var col in _keys){<td>@Cell(row,col)</td>} @if(_tab=="incidents"){<td><button class="button-secondary button-small" @onclick="() => EditIncident(row)">Gérer</button></td>}</tr>}
+@foreach(var row in _rows){<tr>@foreach(var col in _keys){<td>@Cell(row,col)</td>} @if(_tab=="incidents"){<td><button class="button-secondary button-small" @onclick="() => EditIncidentAsync(row)">Gérer</button></td>}</tr>}
 </tbody></table></div>}
 </section>
 @code{
@@ -47,13 +47,13 @@ else{
   catch(OperationCanceledException) when(cancellationToken.IsCancellationRequested){}
  }
  public async ValueTask DisposeAsync(){_refreshCancellation.Cancel();await _refreshLoop;_refreshCancellation.Dispose();}
- private void EditIncident(JsonElement row){
+ private async Task EditIncidentAsync(JsonElement row){
   _editingIncidentId=row.GetProperty("id").GetGuid();
   _incidentStatus=row.TryGetProperty("status",out var status)?status.GetString()??"Open":"Open";
   _incidentSeverity=row.TryGetProperty("severity",out var severity)?severity.GetString()??"Medium":"Medium";
   _incidentAssignee=row.TryGetProperty("assignedTo",out var assignee)&&assignee.ValueKind==JsonValueKind.String?assignee.GetString()??"": "";
   _incidentComment=row.TryGetProperty("resolutionComment",out var comment)&&comment.ValueKind==JsonValueKind.String?comment.GetString()??"": "";
-  _incidentHistory=[];_ = LoadIncidentHistoryAsync();
+  _incidentHistory=[];await LoadIncidentHistoryAsync();
  }
  private void CloseIncidentEditor(){_editingIncidentId=null;_incidentHistory=[];}
  private async Task SaveIncidentWorkflowAsync(){
@@ -125,7 +125,7 @@ else{
    (_keys,_columns)=_tab switch{
     "expected"=>(new[] {"ruleName","expectedFileName","expectedAtLocal","deadlineAtLocal","receivedAtLocal","status"},new[] {"Flux","Fichier attendu","Heure prévue","Échéance","Réception","Statut"}),
     "received"=>(new[] {"fileName","fullPath","sizeBytes","detectedAtUtc","stableAtUtc"},new[] {"Fichier","Chemin complet","Taille (octets)","Détecté le","Stable depuis"}),
-    "incidents"=>(new[] {"code","message","occurredAtUtc","isResolved","resolvedAtUtc"},new[] {"Code","Description","Détecté le","Résolu","Résolu le"}),
+    "incidents"=>(new[] {"code","message","occurredAtUtc","status","severity","assignedTo","isResolved","resolvedAtUtc"},new[] {"Code","Description","Détecté le","Statut","Priorité","Assigné à","Résolu","Résolu le"}),
     _=>(new[] {"startedAtUtc","completedAtUtc","filesDiscovered","error"},new[] {"Démarré le","Terminé le","Fichiers détectés","Erreur"})};
   }catch(Exception ex){_error="Impossible de récupérer les données : "+ex.Message;_rows=[];}
   finally{_loading=false;}
@@ -136,6 +136,8 @@ else{
   if((key is "expectedAtLocal" or "deadlineAtLocal" or "receivedAtLocal")&&v.ValueKind==JsonValueKind.String&&DateTime.TryParse(v.GetString(),out var local))return local.ToString("dd/MM/yyyy HH:mm:ss");
   if(key=="sizeBytes"&&v.TryGetInt64(out var bytes))return bytes.ToString("N0");
   if(key=="isResolved")return v.GetBoolean()?"Oui":"Non";
+  if(key=="status"&&v.ValueKind==JsonValueKind.String)return v.GetString() switch{"Open"=>"Ouvert","InProgress"=>"En cours","Resolved"=>"Résolu","Closed"=>"Clos",_=>v.GetString()??"—"};
+  if(key=="severity"&&v.ValueKind==JsonValueKind.String)return v.GetString() switch{"Low"=>"Basse","Medium"=>"Normale","High"=>"Haute","Critical"=>"Critique",_=>v.GetString()??"—"};
   if(key=="status"&&v.ValueKind==JsonValueKind.String)return v.GetString() switch{"Received"=>"Reçu","Late"=>"En retard","Missing"=>"Manquant","Waiting"=>"En attente","Scheduled"=>"Planifié","Invalid"=>"Invalide","Duplicate"=>"Doublon","Cancelled"=>"Annulé",_=>v.GetString()??"—"};
   return v.ToString();
  }
