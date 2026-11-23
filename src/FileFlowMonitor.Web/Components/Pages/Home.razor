@@ -87,17 +87,42 @@ else if (_data is not null)
             <div class="table-wrap"><table>
                 <thead><tr><th>Flux</th><th>Heure prévue</th><th>Fichier attendu</th><th>Échéance</th><th>Réception</th><th>Statut</th></tr></thead>
                 <tbody>
-                @foreach (var file in _data.RootElement.GetProperty("expectedFiles").EnumerateArray())
+                @foreach (var group in _data.RootElement.GetProperty("expectedFiles").EnumerateArray()
+                    .GroupBy(file => new
+                    {
+                        RuleName = file.GetProperty("ruleName").GetString(),
+                        ExpectedAt = file.GetProperty("expectedAtLocal").GetString()
+                    }))
                 {
-                    var status = file.GetProperty("status").GetString() ?? "";
-                    <tr class="@(status == "Missing" ? "expected-row-missing" : "")">
-                        <td><strong>@file.GetProperty("ruleName").GetString()</strong></td>
-                        <td>@LocalTime(file, "expectedAtLocal")</td>
-                        <td class="path-cell">@file.GetProperty("expectedFileName").GetString()</td>
-                        <td>@LocalTime(file, "deadlineAtLocal")</td>
-                        <td>@ReceivedTime(file)</td>
-                        <td><span class="pill @StatusClass(status)">@StatusLabel(status)</span></td>
+                    var receivedCount = group.Count(file => file.GetProperty("status").GetString() == "Received");
+                    var lateCount = group.Count(file => file.GetProperty("status").GetString() == "Late");
+                    var missingCount = group.Count(file => file.GetProperty("status").GetString() == "Missing");
+                    var pendingCount = group.Count(file => file.GetProperty("status").GetString() is "Waiting" or "Scheduled");
+                    <tr class="expected-group-row">
+                        <td colspan="6">
+                            <div class="expected-group-heading">
+                                <strong>@group.Key.RuleName · @DateTime.Parse(group.Key.ExpectedAt!).ToString("HH:mm")</strong>
+                                <span class="expected-group-summary">
+                                    @if (receivedCount > 0) { <span class="group-count group-count-received">@receivedCount reçu(s) à l'heure</span> }
+                                    @if (lateCount > 0) { <span class="group-count group-count-late">@lateCount en retard</span> }
+                                    @if (missingCount > 0) { <span class="group-count group-count-missing">@missingCount manquant(s)</span> }
+                                    @if (pendingCount > 0) { <span class="group-count group-count-pending">@pendingCount planifié(s)</span> }
+                                </span>
+                            </div>
+                        </td>
                     </tr>
+                    @foreach (var file in group)
+                    {
+                        var status = file.GetProperty("status").GetString() ?? "";
+                        <tr class="expected-file-row @ExpectedRowClass(status)">
+                            <td><strong>@file.GetProperty("ruleName").GetString()</strong></td>
+                            <td>@LocalTime(file, "expectedAtLocal")</td>
+                            <td class="path-cell"><span class="expected-file-name">@file.GetProperty("expectedFileName").GetString()</span></td>
+                            <td>@LocalTime(file, "deadlineAtLocal")</td>
+                            <td>@ReceivedTime(file)</td>
+                            <td><span class="pill @StatusClass(status)">@StatusLabel(status)</span></td>
+                        </tr>
+                    }
                 }
                 </tbody>
             </table></div>
@@ -170,6 +195,14 @@ else if (_data is not null)
     {
         "Healthy" => "pill-green", "Delayed" => "pill-orange", "Disabled" => "pill-muted",
         _ => "pill-red"
+    };
+    private static string ExpectedRowClass(string value) => value switch
+    {
+        "Received" => "expected-row-received",
+        "Late" => "expected-row-late",
+        "Missing" or "Invalid" or "Duplicate" => "expected-row-missing",
+        "Waiting" or "Scheduled" => "expected-row-pending",
+        _ => ""
     };
     private static string StatusLabel(string value) => value switch
     {
