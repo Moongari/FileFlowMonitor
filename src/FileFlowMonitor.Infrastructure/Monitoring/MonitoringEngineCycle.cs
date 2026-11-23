@@ -267,7 +267,17 @@ public sealed class MonitoringEngineCycle(FileFlowDbContext db, ExpectedFilePlan
             x.Code == "EXPECTED_FILE_MISSING" &&
             x.ResolvedAtUtc == null).ToListAsync(cancellationToken);
         foreach (var incident in openIncidents)
+        {
             incident.Resolve(now);
+            var workflow = await db.MonitoringIncidentWorkflows
+                .SingleOrDefaultAsync(x => x.MonitoringIncidentId == incident.Id, cancellationToken);
+            if (workflow is not null && workflow.Status != "Closed")
+            {
+                workflow.Update("Resolved", null, null, "Résolu automatiquement : le fichier attendu a été reçu.", now);
+                db.MonitoringIncidentHistories.Add(new MonitoringIncidentHistory(
+                    incident.Id, "AutoResolved", "Fichier attendu reçu ; incident résolu par le moteur.", now));
+            }
+        }
     }
 
     private async Task RecordIncidentAsync(
